@@ -1,0 +1,29 @@
+{
+  "name": "merix-frontend",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro check && astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "lint": "oxlint src",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.4",
+    "@astrojs/node": "^9.4.5",
+    "@astrojs/solid-js": "^5.1.0",
+    "@tailwindcss/vite": "^4.1.18",
+    "astro": "^5.16.2",
+    "solid-js": "^1.9.9",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "oxlint": "^1.21.0",
+    "vitest": "^3.2.4"
+  }
+}
