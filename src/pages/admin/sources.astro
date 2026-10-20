@@ -1,0 +1,93 @@
+---
+/**
+ * `/admin/sources` — nguon du lieu.
+ *
+ * # Trang nay chi doc, co y
+ *
+ * `data_source` cho phep `update` voi vai tro admin, nhung sua `rateLimitPerMin` hay `enabled` tu
+ * mot o input la cach nhanh nhat de lam hong ingestion: ADR-029 ghi lai mot host chan toan bo IP
+ * sau ~180 ma vi gioi han bi dat qua cao. Doi gioi han la mot quyet dinh can doc lai ADR, khong
+ * phai mot o input.
+ *
+ * Nen o day hien du de chan doan, va chi duong dan sua: migration.
+ */
+import AdminLayout from '@layouts/AdminLayout.astro';
+import { adminGet, type DataSource, type Page } from '@core/api/admin';
+import { duongLogin, layToken, xoaPhien } from '@core/api/session';
+
+const token = layToken(Astro.cookies);
+if (!token) return Astro.redirect(duongLogin(Astro.url), 303);
+
+const res = await adminGet<Page<DataSource>>(
+    '/api/v1/admin/data-sources?limit=50&sort=priority:asc',
+    token,
+);
+
+if (res.kind === 'error' && res.status === 401) {
+    xoaPhien(Astro.cookies);
+    return Astro.redirect(duongLogin(Astro.url), 303);
+}
+
+const sources = res.kind === 'ok' ? res.data.edges.map((e) => e.node) : [];
+
+Astro.response.headers.set('Cache-Control', 'no-store');
+---
+
+<AdminLayout title="Nguồn dữ liệu">
+  <p class="text-sm text-[var(--color-muted)] mb-8 max-w-3xl">
+    Thứ tự ưu tiên quyết định nguồn nào được hỏi trước cho cùng một năng lực. Giới hạn tốc độ là
+    <strong>trên mỗi host</strong>, không phải trên mỗi job — ADR-029: một nguồn đã chặn toàn bộ IP
+    sau khoảng 180 mã vì giới hạn đặt quá cao. Đổi các giá trị này bằng migration, không sửa trực
+    tiếp từ trang này.
+  </p>
+
+  {res.kind === 'error' ? (
+    <p class="text-sm text-[var(--color-notup)]">Không đọc được danh sách nguồn: {res.message}</p>
+  ) : sources.length === 0 ? (
+    <p class="text-sm text-[var(--color-muted)]">Chưa khai nguồn dữ liệu nào.</p>
+  ) : (
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm border-collapse min-w-[44rem]">
+        <thead>
+          <tr class="text-left text-[var(--color-muted)] border-b border-[var(--color-line)]">
+            <th class="py-2 pr-3 font-medium">Ưu tiên</th>
+            <th class="py-2 pr-3 font-medium">Mã</th>
+            <th class="py-2 pr-3 font-medium">Tên</th>
+            <th class="py-2 pr-3 font-medium">Trạng thái</th>
+            <th class="py-2 pr-3 font-medium">Giới hạn</th>
+            <th class="py-2 font-medium">Giấy phép</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sources.map((s) => (
+            <tr class="border-b border-[var(--color-line)] last:border-0 align-top">
+              <td class="py-2 pr-3 tabular-nums text-[var(--color-muted)]">{s.priority}</td>
+              <td class="py-2 pr-3 font-mono text-xs whitespace-nowrap">{s.code}</td>
+              <td class="py-2 pr-3">
+                {s.displayName}
+                <div class="text-xs text-[var(--color-muted)] break-all">{s.baseUrl}</div>
+              </td>
+              <td
+                class:list={[
+                  'py-2 pr-3 whitespace-nowrap font-medium',
+                  s.enabled ? 'text-[var(--color-up)]' : 'text-[var(--color-muted)]',
+                ]}
+              >
+                {s.enabled ? 'Đang dùng' : 'Đã tắt'}
+              </td>
+              <td class="py-2 pr-3 tabular-nums whitespace-nowrap">
+                {s.rateLimitPerMin}/phút
+                {/* 1/phút là giá trị đặt có ý thức cho nguồn nội bộ, không phải lỗi cấu hình:
+                    CHECK data_source_rate_limit_positive không cho ghi 0. */}
+                {s.rateLimitPerMin <= 1 && (
+                  <div class="text-xs text-[var(--color-muted)]">nguồn dẫn xuất / nội bộ</div>
+                )}
+              </td>
+              <td class="py-2 text-xs text-[var(--color-muted)] max-w-xs">{s.licenceNote}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</AdminLayout>

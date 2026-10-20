@@ -1,0 +1,109 @@
+---
+/**
+ * Dang nhap admin.
+ *
+ * Form POST that, khong JavaScript. Mat khau di qua mot request SSR roi khong bao gio quay lai
+ * trinh duyet; token nhan duoc nam ngay vao cookie `HttpOnly` va cung khong ve client.
+ */
+import AdminLayout from '@layouts/AdminLayout.astro';
+import { login } from '@core/api/admin';
+import {
+    duongDanAnToan,
+    layToken,
+    luuPhien,
+    nguonGocHopLe,
+    tuChoiKhacNguon,
+} from '@core/api/session';
+
+const next = duongDanAnToan(Astro.url.searchParams.get('next'));
+
+// Da co phien thi di luon. Dang nhap lai khong them gi ngoai mot co hoi go sai mat khau.
+if (Astro.request.method === 'GET' && layToken(Astro.cookies)) {
+    return Astro.redirect(next, 303);
+}
+
+let loi: string | null = null;
+let emailDaNhap = '';
+
+if (Astro.request.method === 'POST') {
+    // Login CSRF cũng là CSRF: một form POST từ site khác có thể đăng nhập người dùng vào tài
+    // khoản của kẻ tấn công, rồi mọi việc họ làm sau đó rơi vào phiên của kẻ đó.
+    if (!nguonGocHopLe(Astro.request, Astro.url)) return tuChoiKhacNguon();
+
+    const form = await Astro.request.formData();
+    emailDaNhap = String(form.get('email') ?? '').trim();
+    const password = String(form.get('password') ?? '');
+
+    if (!emailDaNhap || !password) {
+        loi = 'Nhập cả email và mật khẩu.';
+    } else {
+        const res = await login(emailDaNhap, password);
+        if (res.kind === 'ok') {
+            luuPhien(Astro.cookies, Astro.url, res.data);
+            // 303 de lan F5 sau do khong gui lai mat khau.
+            return Astro.redirect(duongDanAnToan(String(form.get('next') ?? '')), 303);
+        }
+        loi = res.message;
+    }
+}
+
+// Form POST khong duoc cache o bat ky dau.
+Astro.response.headers.set('Cache-Control', 'no-store');
+---
+
+<AdminLayout title="Đăng nhập" nav={false}>
+  <div class="max-w-sm mx-auto">
+    <h1 class="text-xl font-semibold mb-1">Đăng nhập quản trị</h1>
+    <p class="text-sm text-[var(--color-muted)] mb-6">
+      Khu vực vận hành: trạng thái job, cảnh báo, kết quả thẩm định.
+    </p>
+
+    {loi && (
+      <p
+        role="alert"
+        class="mb-4 text-sm border border-[var(--color-notup)] text-[var(--color-notup)]
+               rounded px-3 py-2"
+      >
+        {loi}
+      </p>
+    )}
+
+    <form method="post" class="space-y-4">
+      <input type="hidden" name="next" value={next} />
+
+      <label class="block">
+        <span class="block text-xs text-[var(--color-muted)] mb-1">Email</span>
+        <input
+          type="email"
+          name="email"
+          value={emailDaNhap}
+          required
+          autocomplete="username"
+          autofocus
+          class="w-full bg-[var(--color-panel)] border border-[var(--color-line)] rounded
+                 px-3 py-2 text-sm"
+        />
+      </label>
+
+      <label class="block">
+        <span class="block text-xs text-[var(--color-muted)] mb-1">Mật khẩu</span>
+        <input
+          type="password"
+          name="password"
+          required
+          autocomplete="current-password"
+          class="w-full bg-[var(--color-panel)] border border-[var(--color-line)] rounded
+                 px-3 py-2 text-sm"
+        />
+      </label>
+
+      <button
+        type="submit"
+        class="w-full bg-[var(--color-up)] text-[var(--color-surface)] font-semibold
+               rounded px-3 py-2 text-sm"
+      >
+        Đăng nhập
+      </button>
+    </form>
+  </div>
+</AdminLayout>

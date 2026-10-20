@@ -1,0 +1,87 @@
+---
+/**
+ * Khung trang admin.
+ *
+ * Khac PublicLayout o mot diem co y: **khong** co disclaimer du bao, nhung co mot dai bang do
+ * noi ro day la khu vuc noi bo. Disclaimer la rang buoc cho trang hien xac suat cho nguoi dung;
+ * trang admin khong hien xac suat cho ai ca.
+ */
+import '@core/styles/global.css';
+import { PUBLIC_APP_NAME } from 'astro:env/client';
+
+interface Props {
+    title: string;
+    /** `false` o trang dang nhap: chua co phien thi khong ve thanh dieu huong. */
+    nav?: boolean;
+}
+const { title, nav = true } = Astro.props;
+
+const MENU: { href: string; label: string }[] = [
+    { href: '/admin', label: 'Job & cảnh báo' },
+    { href: '/admin/validation', label: 'Thẩm định mô hình' },
+    { href: '/admin/sources', label: 'Nguồn dữ liệu' },
+];
+
+const here = Astro.url.pathname.replace(/\/$/, '') || '/admin';
+---
+
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} · Admin · {PUBLIC_APP_NAME}</title>
+    <!-- Khu vuc noi bo: khong de search engine danh chi muc. -->
+    <meta name="robots" content="noindex, nofollow" />
+  </head>
+  <body class="min-h-screen flex flex-col">
+    <header class="border-b border-[var(--color-line)]">
+      <div class="px-6 py-3 flex items-baseline gap-4 flex-wrap">
+        <a href="/" class="font-bold tracking-wide">{PUBLIC_APP_NAME}</a>
+        <span
+          class="text-[10px] uppercase tracking-widest px-2 py-0.5 rounded
+                 border border-[var(--color-warn)] text-[var(--color-warn)]"
+        >
+          Nội bộ
+        </span>
+        {nav && (
+          <form method="post" action="/admin/logout" class="ml-auto">
+            <button
+              type="submit"
+              class="text-xs text-[var(--color-muted)] underline hover:text-[var(--color-ink)]"
+            >
+              Đăng xuất
+            </button>
+          </form>
+        )}
+      </div>
+
+      {nav && (
+        <nav class="px-6 pb-2 flex gap-5 text-sm">
+          {MENU.map((m) => (
+            <a
+              href={m.href}
+              aria-current={here === m.href ? 'page' : undefined}
+              class:list={[
+                'pb-1 border-b-2',
+                here === m.href
+                  ? 'border-[var(--color-up)] text-[var(--color-ink)]'
+                  : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-ink)]',
+              ]}
+            >
+              {m.label}
+            </a>
+          ))}
+        </nav>
+      )}
+    </header>
+
+    <main class="flex-1 px-6 py-8 max-w-6xl mx-auto w-full">
+      <slot />
+    </main>
+
+    <footer class="border-t border-[var(--color-line)] px-6 py-4 text-xs text-[var(--color-muted)]">
+      Trang quản trị. Số liệu ở đây là trạng thái vận hành, không phải dự báo.
+    </footer>
+  </body>
+</html>

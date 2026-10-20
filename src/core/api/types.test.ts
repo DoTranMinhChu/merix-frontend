@@ -18,8 +18,6 @@ import {
     formatProbability,
     horizonLabel,
     requiresWarning,
-    type AbstainReason,
-    type AssetLevel,
     type ValidationStatus,
 } from './types';
 

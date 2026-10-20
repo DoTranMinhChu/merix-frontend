@@ -1,0 +1,250 @@
+---
+/**
+ * `/admin/validation` — ket qua tham dinh mo hinh.
+ *
+ * # Trang nay phai dam noi ra khi mo hinh KEM
+ *
+ * Do duoc tren du lieu that: `logistic` co skill -2,67% — tuc **te hon** du bao khi hau. Mot trang
+ * admin chi hien "da tham dinh" se che mat dieu do. Nen o day skill am duoc to do, va moi dong
+ * mang theo `inferredMembershipRatio` theo ADR-010.
+ */
+import AdminLayout from '@layouts/AdminLayout.astro';
+import {
+    adminGet,
+    skillLabel,
+    type ModelVersion,
+    type Page,
+    type ValidationRun,
+} from '@core/api/admin';
+import { duongLogin, layToken, xoaPhien } from '@core/api/session';
+
+const token = layToken(Astro.cookies);
+if (!token) return Astro.redirect(duongLogin(Astro.url), 303);
+
+const [runRes, mvRes] = await Promise.all([
+    adminGet<Page<ValidationRun>>(
+        '/api/v1/admin/validation-runs?limit=100&sort=createdAt:desc',
+        token,
+    ),
+    adminGet<Page<ModelVersion>>('/api/v1/model-versions?limit=200&sort=code:asc', token),
+]);
+
+if (runRes.kind === 'error' && runRes.status === 401) {
+    xoaPhien(Astro.cookies);
+    return Astro.redirect(duongLogin(Astro.url), 303);
+}
+
+const runs = runRes.kind === 'ok' ? runRes.data.edges.map((e) => e.node) : [];
+const versions = mvRes.kind === 'ok' ? mvRes.data.edges.map((e) => e.node) : [];
+const theoId = new Map(versions.map((v) => [v.modelVersionId, v]));
+
+/**
+ * Gop theo ho mo hinh, vi do la cau hoi that: "ho nao dang tot hon?"
+ *
+ * Trung binh KHONG co trong so: moi lan tham dinh la mot cua so walk-forward rieng, va lay trung
+ * binh co trong so theo `nForecasts` se de ky han ngan — von nhieu du bao hon han — ap ca ket qua.
+ */
+interface HoMo {
+    family: string;
+    soLan: number;
+    soDuBao: number;
+    /** Tong skill cua cac lan DO DUOC; chia o buoc sau. */
+    tongSkill: number | null;
+    /** So lan do duoc skill. Mau so dung la day, khong phai `soLan`. */
+    soLanCoSkill: number;
+    skillXau: number | null;
+    kyHan: Set<number>;
+}
+
+const theoHo = new Map<string, HoMo>();
+for (const r of runs) {
+    const mv = theoId.get(r.modelVersionId);
+    // Khong ghep duoc voi phien ban mo hinh thi khong biet no thuoc ho nao. Bo qua thay vi doan.
+    if (!mv) continue;
+
+    const cur: HoMo = theoHo.get(mv.family) ?? {
+        family: mv.family,
+        soLan: 0,
+        soDuBao: 0,
+        tongSkill: null,
+        soLanCoSkill: 0,
+        skillXau: null,
+        kyHan: new Set<number>(),
+    };
+
+    cur.soLan += 1;
+    cur.soDuBao += r.nForecasts;
+    cur.kyHan.add(mv.horizonSessions);
+
+    if (r.brierSkillPercent !== null) {
+        cur.tongSkill = (cur.tongSkill ?? 0) + r.brierSkillPercent;
+        cur.soLanCoSkill += 1;
+        cur.skillXau =
+            cur.skillXau === null
+                ? r.brierSkillPercent
+                : Math.min(cur.skillXau, r.brierSkillPercent);
+    }
+
+    theoHo.set(mv.family, cur);
+}
+
+const hoMo = [...theoHo.values()]
+    .map((h) => ({
+        ...h,
+        // Chia cho so lan CO skill. Mot lan abstain khong duoc keo trung binh ve 0 — "chua do
+        // duoc" khong phai "khong co ky nang".
+        skillTB: h.tongSkill === null ? null : h.tongSkill / h.soLanCoSkill,
+    }))
+    // Ho chua do duoc skill xuong duoi, khong len dau.
+    .sort((a, b) => (b.skillTB ?? Number.NEGATIVE_INFINITY) - (a.skillTB ?? Number.NEGATIVE_INFINITY));
+
+/** Mau theo dau cua skill. Am la mot ket luan do duoc, khong phai mot loi hien thi. */
+function mauSkill(v: number | null): string {
+    if (v === null) return 'text-[var(--color-muted)]';
+    if (v > 0) return 'text-[var(--color-up)]';
+    if (v < 0) return 'text-[var(--color-notup)]';
+    return 'text-[var(--color-muted)]';
+}
+
+const VALIDATION_LABELS: Record<string, string> = {
+    VALIDATED: 'Đã thẩm định',
+    PENDING: 'Chờ thẩm định',
+    FAILED: 'Thẩm định thất bại',
+    INSUFFICIENT_DATA: 'Không đủ dữ liệu',
+};
+
+Astro.response.headers.set('Cache-Control', 'no-store');
+---
+
+<AdminLayout title="Thẩm định mô hình">
+  <p class="text-sm text-[var(--color-muted)] mb-8 max-w-3xl">
+    Skill dương nghĩa là mô hình tốt hơn dự báo khí hậu (tỷ lệ tăng trong quá khứ); skill âm nghĩa
+    là <strong class="text-[var(--color-notup)]">tệ hơn</strong> dự báo khí hậu. Con số ở đây quyết
+    định mô hình nào được phát ra trang người dùng, nên nó được hiển thị cả khi nó xấu.
+  </p>
+
+  <section class="mb-10">
+    <h2 class="text-sm uppercase tracking-wider text-[var(--color-muted)] mb-3">Theo họ mô hình</h2>
+
+    {hoMo.length === 0 ? (
+      <p class="text-sm text-[var(--color-muted)]">
+        Chưa có lần thẩm định nào ghép được với phiên bản mô hình.
+      </p>
+    ) : (
+      <table class="w-full text-sm border-collapse">
+        <thead>
+          <tr class="text-left text-[var(--color-muted)] border-b border-[var(--color-line)]">
+            <th class="py-2 pr-4 font-medium">Họ mô hình</th>
+            <th class="py-2 pr-4 font-medium">Skill trung bình</th>
+            <th class="py-2 pr-4 font-medium">Skill xấu nhất</th>
+            <th class="py-2 pr-4 font-medium">Số lần thẩm định</th>
+            <th class="py-2 pr-4 font-medium">Số dự báo</th>
+            <th class="py-2 font-medium">Kỳ hạn</th>
+          </tr>
+        </thead>
+        <tbody>
+          {hoMo.map((h) => (
+            <tr class="border-b border-[var(--color-line)] last:border-0">
+              <td class="py-2 pr-4 font-mono text-xs">{h.family}</td>
+              <td class:list={['py-2 pr-4 tabular-nums font-semibold', mauSkill(h.skillTB)]}>
+                {skillLabel(h.skillTB) ?? 'chưa đo được'}
+              </td>
+              <td class:list={['py-2 pr-4 tabular-nums', mauSkill(h.skillXau)]}>
+                {skillLabel(h.skillXau) ?? '—'}
+              </td>
+              <td class="py-2 pr-4 tabular-nums text-[var(--color-muted)]">
+                {h.soLan}
+                {h.soLanCoSkill < h.soLan && (
+                  <span class="text-xs"> ({h.soLan - h.soLanCoSkill} chưa đo được)</span>
+                )}
+              </td>
+              <td class="py-2 pr-4 tabular-nums text-[var(--color-muted)]">{h.soDuBao}</td>
+              <td class="py-2 text-xs text-[var(--color-muted)] tabular-nums">
+                {[...h.kyHan].sort((a, b) => a - b).join(', ')}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )}
+  </section>
+
+  <section>
+    <div class="flex items-baseline justify-between mb-3">
+      <h2 class="text-sm uppercase tracking-wider text-[var(--color-muted)]">Từng lần thẩm định</h2>
+      <span class="text-xs text-[var(--color-muted)] tabular-nums">{runs.length} dòng</span>
+    </div>
+
+    {runRes.kind === 'error' ? (
+      <p class="text-sm text-[var(--color-notup)]">Không đọc được: {runRes.message}</p>
+    ) : runs.length === 0 ? (
+      <p class="text-sm text-[var(--color-muted)]">Chưa có lần thẩm định nào.</p>
+    ) : (
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm border-collapse min-w-[52rem]">
+          <thead>
+            <tr class="text-left text-[var(--color-muted)] border-b border-[var(--color-line)]">
+              <th class="py-2 pr-3 font-medium">Mô hình</th>
+              <th class="py-2 pr-3 font-medium">Kỳ hạn</th>
+              <th class="py-2 pr-3 font-medium">Giai đoạn</th>
+              <th class="py-2 pr-3 font-medium">n</th>
+              <th class="py-2 pr-3 font-medium">Brier</th>
+              <th class="py-2 pr-3 font-medium">Skill</th>
+              <th class="py-2 pr-3 font-medium">Log loss</th>
+              <th class="py-2 pr-3 font-medium">Chính xác</th>
+              <th class="py-2 pr-3 font-medium">Suy đoán ngành</th>
+              <th class="py-2 font-medium">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            {runs.map((r) => {
+              const mv = theoId.get(r.modelVersionId);
+              return (
+                <tr class="border-b border-[var(--color-line)] last:border-0">
+                  <td class="py-2 pr-3 font-mono text-xs whitespace-nowrap">
+                    {mv ? `${mv.family} · ${mv.assetLevel}` : `#${r.modelVersionId}`}
+                  </td>
+                  <td class="py-2 pr-3 tabular-nums text-[var(--color-muted)]">
+                    {mv ? mv.horizonSessions : '—'}
+                  </td>
+                  <td
+                    class="py-2 pr-3 text-xs tabular-nums text-[var(--color-muted)] whitespace-nowrap"
+                  >
+                    {r.periodFrom} → {r.periodTo}
+                  </td>
+                  <td class="py-2 pr-3 tabular-nums">{r.nForecasts}</td>
+                  <td class="py-2 pr-3 tabular-nums">
+                    {r.brier === null ? '—' : r.brier.toFixed(4)}
+                  </td>
+                  <td
+                    class:list={[
+                      'py-2 pr-3 tabular-nums font-semibold',
+                      mauSkill(r.brierSkillPercent),
+                    ]}
+                  >
+                    {skillLabel(r.brierSkillPercent) ?? '—'}
+                  </td>
+                  <td class="py-2 pr-3 tabular-nums text-[var(--color-muted)]">
+                    {r.logLoss === null ? '—' : r.logLoss.toFixed(4)}
+                  </td>
+                  <td class="py-2 pr-3 tabular-nums text-[var(--color-muted)]">
+                    {r.accuracy === null ? '—' : `${(r.accuracy * 100).toFixed(1)}%`}
+                  </td>
+                  {/* ADR-010: luôn hiện, kể cả khi bằng 0 — "0%" là một thông tin, ô trống thì không. */}
+                  <td class="py-2 pr-3 tabular-nums text-[var(--color-warn)]">
+                    {r.inferredMembershipRatio === null
+                      ? '—'
+                      : `${(Number(r.inferredMembershipRatio) * 100).toFixed(0)}%`}
+                  </td>
+                  <td class="py-2 text-xs text-[var(--color-muted)] whitespace-nowrap">
+                    {mv ? (VALIDATION_LABELS[mv.validationStatus] ?? mv.validationStatus) : '—'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </section>
+</AdminLayout>

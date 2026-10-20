@@ -1,0 +1,111 @@
+---
+/**
+ * Bang lan chay job.
+ *
+ * # Mot job `SUCCEEDED` khong co nghia la moi thu on
+ *
+ * Phat hien ADR-026: job ingest di het 1.754 ma, 95% ma loi, va ket thuc `SUCCEEDED` — vi job
+ * **da chay xong**. So ma loi nam trong `stats`, va khong ai mo `stats` cua mot job thanh cong.
+ *
+ * Nen bang nay doc `stats` thay nguoi dung va keu lên: mot dong xanh co canh bao vang ben canh.
+ */
+import { jobCanhBao, STATUS_LABELS, type JobRun } from '@core/api/admin';
+
+interface Props {
+    jobs: JobRun[];
+}
+const { jobs } = Astro.props;
+
+const MAU: Record<JobRun['status'], string> = {
+    PENDING: 'text-[var(--color-muted)]',
+    RUNNING: 'text-[var(--color-warn)]',
+    SUCCEEDED: 'text-[var(--color-up)]',
+    FAILED: 'text-[var(--color-notup)]',
+    CANCELLED: 'text-[var(--color-muted)]',
+};
+
+/** `2026-10-20T09:15:00Z` -> `20/10 09:15`. Chuoi ISO day du khong doc duoc bang mat. */
+function gio(iso: string | null): string {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** Thoi gian chay, tinh tu `startedAt`. Job chua chay thi khong co gi de do. */
+function thoiLuong(j: JobRun): string {
+    if (!j.startedAt) return '—';
+    const tu = new Date(j.startedAt).getTime();
+    const den = j.finishedAt ? new Date(j.finishedAt).getTime() : Date.now();
+    const giay = Math.round((den - tu) / 1000);
+    if (!Number.isFinite(giay) || giay < 0) return '—';
+    if (giay < 60) return `${giay}s`;
+    if (giay < 3600) return `${Math.floor(giay / 60)}m${String(giay % 60).padStart(2, '0')}s`;
+    return `${Math.floor(giay / 3600)}h${String(Math.floor((giay % 3600) / 60)).padStart(2, '0')}m`;
+}
+
+/** Vai so dang chu y trong `stats`, de khong phai mo JSON ra doc. */
+function tomTat(j: JobRun): string | null {
+    if (!j.stats) return null;
+    const uu = ['inserted', 'updated', 'live', 'abstained', 'evaluated', 'symbols', 'rows'];
+    const phan = uu
+        .filter((k) => typeof j.stats?.[k] === 'number')
+        .map((k) => `${k}=${j.stats?.[k] as number}`);
+    return phan.length > 0 ? phan.join(' ') : null;
+}
+---
+
+{jobs.length === 0 ? (
+  <p class="text-sm text-[var(--color-muted)]">Chưa có lần chạy job nào.</p>
+) : (
+  <table class="w-full text-sm border-collapse">
+    <thead>
+      <tr class="text-left text-[var(--color-muted)] border-b border-[var(--color-line)]">
+        <th class="py-2 pr-3 font-medium">#</th>
+        <th class="py-2 pr-3 font-medium">Loại job</th>
+        <th class="py-2 pr-3 font-medium">Trạng thái</th>
+        <th class="py-2 pr-3 font-medium">Yêu cầu</th>
+        <th class="py-2 pr-3 font-medium">Thời gian</th>
+        <th class="py-2 font-medium">Kết quả</th>
+      </tr>
+    </thead>
+    <tbody>
+      {jobs.map((j) => {
+        const canhBao = jobCanhBao(j);
+        const tt = tomTat(j);
+        return (
+          <tr class="border-b border-[var(--color-line)] last:border-0 align-top">
+            <td class="py-2 pr-3 tabular-nums text-[var(--color-muted)]">{j.jobRunId}</td>
+            <td class="py-2 pr-3 whitespace-nowrap font-mono text-xs">{j.jobType}</td>
+            <td class:list={['py-2 pr-3 whitespace-nowrap font-medium', MAU[j.status]]}>
+              {STATUS_LABELS[j.status] ?? j.status}
+              {j.attempts > 1 && (
+                <span class="text-[var(--color-muted)] font-normal"> ·{j.attempts} lần</span>
+              )}
+            </td>
+            <td class="py-2 pr-3 whitespace-nowrap tabular-nums text-[var(--color-muted)]">
+              {gio(j.requestedAt)}
+            </td>
+            <td class="py-2 pr-3 whitespace-nowrap tabular-nums text-[var(--color-muted)]">
+              {thoiLuong(j)}
+            </td>
+            <td class="py-2 text-xs">
+              {/* Cảnh báo đứng TRƯỚC tóm tắt: nó là thứ cần đọc, số đếm chỉ là bối cảnh. */}
+              {canhBao && (
+                <div class="text-[var(--color-warn)]">⚠ {canhBao}</div>
+              )}
+              {j.lastError && (
+                <div class="text-[var(--color-notup)] font-mono break-all">{j.lastError}</div>
+              )}
+              {tt && <div class="text-[var(--color-muted)] font-mono">{tt}</div>}
+              {!canhBao && !j.lastError && !tt && (
+                <span class="text-[var(--color-muted)]">—</span>
+              )}
+            </td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+)}

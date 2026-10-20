@@ -1,0 +1,245 @@
+---
+/**
+ * `/admin` — job va canh bao.
+ *
+ * # Trang nay tra loi dung mot cau hoi: "he thong co dang chay dung khong?"
+ *
+ * Nen no dat ba thu canh nhau: lan chay job gan nhat, canh bao chua xu ly, va mot nut xep job.
+ * Khong co bieu do; so dem va mau sac doc nhanh hon.
+ */
+import AdminLayout from '@layouts/AdminLayout.astro';
+import JobTable from '@modules/admin/JobTable.astro';
+import {
+    adminGet,
+    adminPost,
+    JOB_DESCRIPTIONS,
+    JOB_TYPES,
+    type Alert,
+    type JobRun,
+    type Page,
+} from '@core/api/admin';
+import {
+    duongLogin,
+    layToken,
+    nguonGocHopLe,
+    tuChoiKhacNguon,
+    xoaPhien,
+} from '@core/api/session';
+
+const token = layToken(Astro.cookies);
+if (!token) return Astro.redirect(duongLogin(Astro.url), 303);
+
+let thongBao: { ok: boolean; text: string } | null = null;
+
+if (Astro.request.method === 'POST') {
+    // Lớp thứ hai sau `SameSite=Strict`: một form POST khởi phát từ site khác không được xếp job.
+    if (!nguonGocHopLe(Astro.request, Astro.url)) return tuChoiKhacNguon();
+
+    const form = await Astro.request.formData();
+    const jobType = String(form.get('jobType') ?? '');
+
+    // Kiem ca o day du backend cung kiem: gui mot gia tri khong co trong danh sach nghia la form
+    // bi sua tay, va tu choi ngay o SSR thi khong ton mot vong goi API.
+    if (!(JOB_TYPES as readonly string[]).includes(jobType)) {
+        thongBao = { ok: false, text: `Loại job không hợp lệ: ${jobType}` };
+    } else {
+        const res = await adminPost<{
+            jobRunId: number | null;
+            jobType: string;
+            idempotencyKey: string;
+            created: boolean;
+        }>('/api/v1/admin/job-runs', token, { jobType, params: {} });
+
+        if (res.kind === 'ok') {
+            thongBao = res.data.created
+                ? { ok: true, text: `Đã xếp job #${res.data.jobRunId} · ${res.data.jobType}` }
+                : {
+                      ok: true,
+                      // `created: false` KHONG phai loi — do la chong trung dang lam viec.
+                      text: `${res.data.jobType} đã được xếp trong phút này rồi, không tạo thêm.`,
+                  };
+        } else {
+            thongBao = { ok: false, text: res.message };
+        }
+    }
+}
+
+/**
+ * Canh bao duoc hoi theo MUC, khong phai theo thoi gian.
+ *
+ * Lan dau trang nay goi `?limit=20&sort=createdAt:desc` roi tu loc phia client. Do tren du lieu
+ * that: 20 dong moi nhat toan `INFO`, trang bao "20/20 canh bao", trong khi 137 canh bao
+ * `WARNING` nam ngoai cua so do. Mot trang van hanh noi "moi thu on" trong khi khong on la dung
+ * cai hong ma du an nay ton tai de chong.
+ *
+ * Nen bay gio: loc `acknowledgedAt:isnull` + `severity:in:...` o server, va dem `INFO` rieng de
+ * noi ra con bao nhieu dong khong hien.
+ */
+const NGHIEM_TRONG = 'CRITICAL,ERROR,WARNING';
+// `isNull` camelCase theo ADR-019, giống mọi tên khác trong query string.
+const CHUA_XU_LY = 'filter=acknowledgedAt:isNull';
+
+const [jobRes, alertRes, infoRes] = await Promise.all([
+    adminGet<Page<JobRun>>(
+        '/api/v1/admin/job-runs?limit=25&sort=requestedAt:desc&withTotal=true',
+        token,
+    ),
+    adminGet<Page<Alert>>(
+        `/api/v1/admin/alerts?${CHUA_XU_LY}&filter=severity:in:${NGHIEM_TRONG}` +
+            '&limit=25&sort=createdAt:desc&withTotal=true',
+        token,
+    ),
+    // `limit=1` vi chi can con so: `withTotal` dem toan bo tap khop filter, khong chi trang nay.
+    adminGet<Page<Alert>>(
+        `/api/v1/admin/alerts?${CHUA_XU_LY}&filter=severity:eq:INFO&limit=1&withTotal=true`,
+        token,
+    ),
+]);
+
+// Token het han giua phien: xoa cookie roi bat dang nhap lai, thay vi hien mot trang trong.
+if (
+    (jobRes.kind === 'error' && jobRes.status === 401) ||
+    (alertRes.kind === 'error' && alertRes.status === 401)
+) {
+    xoaPhien(Astro.cookies);
+    return Astro.redirect(duongLogin(Astro.url), 303);
+}
+
+const jobs = jobRes.kind === 'ok' ? jobRes.data.edges.map((e) => e.node) : [];
+
+/** Cảnh báo nghiêm trọng chưa xử lý — đã lọc ở server, không lọc lại ở đây. */
+const nghiemTrong = alertRes.kind === 'ok' ? alertRes.data.edges.map((e) => e.node) : [];
+/** Tổng số, kể cả phần không nằm trong 25 dòng đầu. `null` khi backend không đếm được. */
+const tongNghiemTrong = alertRes.kind === 'ok' ? alertRes.data.pageInfo.totalCount : null;
+const tongInfo = infoRes.kind === 'ok' ? infoRes.data.pageInfo.totalCount : null;
+
+const tongJob = jobRes.kind === 'ok' ? jobRes.data.pageInfo.totalCount : null;
+const uocLuong = jobRes.kind === 'ok' && jobRes.data.pageInfo.totalIsEstimate === true;
+
+const SEVERITY_MAU: Record<string, string> = {
+    CRITICAL: 'text-[var(--color-notup)]',
+    ERROR: 'text-[var(--color-notup)]',
+    WARNING: 'text-[var(--color-warn)]',
+    INFO: 'text-[var(--color-muted)]',
+};
+
+Astro.response.headers.set('Cache-Control', 'no-store');
+---
+
+<AdminLayout title="Job & cảnh báo">
+  {thongBao && (
+    <p
+      role="status"
+      class:list={[
+        'mb-6 text-sm rounded px-3 py-2 border',
+        thongBao.ok
+          ? 'border-[var(--color-up)] text-[var(--color-up)]'
+          : 'border-[var(--color-notup)] text-[var(--color-notup)]',
+      ]}
+    >
+      {thongBao.text}
+    </p>
+  )}
+
+  <section class="mb-10">
+    <h2 class="text-sm uppercase tracking-wider text-[var(--color-muted)] mb-3">Xếp job thủ công</h2>
+
+    <form method="post" class="flex flex-wrap items-end gap-3">
+      <label class="block">
+        <span class="block text-xs text-[var(--color-muted)] mb-1">Loại job</span>
+        <select
+          name="jobType"
+          required
+          class="bg-[var(--color-panel)] border border-[var(--color-line)] rounded px-3 py-2 text-sm"
+        >
+          {JOB_TYPES.map((t) => (
+            <option value={t}>{t} — {JOB_DESCRIPTIONS[t]}</option>
+          ))}
+        </select>
+      </label>
+
+      <button
+        type="submit"
+        class="bg-[var(--color-up)] text-[var(--color-surface)] font-semibold rounded
+               px-4 py-2 text-sm"
+      >
+        Xếp vào hàng đợi
+      </button>
+
+      <p class="text-xs text-[var(--color-muted)] basis-full">
+        Bấm hai lần trong cùng một phút chỉ tạo một job — khoá chặn trùng gói cả phút hiện tại.
+        Job chạy bất đồng bộ; làm mới trang để xem trạng thái.
+      </p>
+    </form>
+  </section>
+
+  <section class="mb-10">
+    <div class="flex items-baseline justify-between mb-3 gap-4 flex-wrap">
+      <h2 class="text-sm uppercase tracking-wider text-[var(--color-muted)]">
+        Cảnh báo chưa xử lý
+      </h2>
+      <span class="text-xs text-[var(--color-muted)] tabular-nums">
+        {/* Con số là TỔNG, không phải số dòng đang hiện — nói "25" khi có 137 là nói sai. */}
+        {tongNghiemTrong !== null
+          ? `${tongNghiemTrong} mức cảnh báo trở lên`
+          : `${nghiemTrong.length} dòng`}
+        {tongInfo !== null && tongInfo > 0 && ` · ${tongInfo} mức INFO không hiện ở đây`}
+      </span>
+    </div>
+
+    {alertRes.kind === 'error' ? (
+      <p class="text-sm text-[var(--color-notup)]">
+        Không đọc được cảnh báo: {alertRes.message}
+      </p>
+    ) : nghiemTrong.length === 0 ? (
+      <p class="text-sm text-[var(--color-muted)]">
+        Không có cảnh báo mức WARNING trở lên nào đang chờ.
+        {tongInfo !== null && tongInfo > 0 && ` Còn ${tongInfo} dòng mức INFO.`}
+      </p>
+    ) : (
+      <ul class="space-y-2">
+        {nghiemTrong.map((a) => (
+          <li class="border border-[var(--color-line)] rounded px-3 py-2 text-sm">
+            <div class="flex flex-wrap items-baseline gap-2">
+              <span
+                class:list={[
+                  'text-[10px] uppercase tracking-widest font-semibold',
+                  SEVERITY_MAU[a.severity] ?? 'text-[var(--color-muted)]',
+                ]}
+              >
+                {a.severity}
+              </span>
+              <span class="font-mono text-xs">{a.code}</span>
+              {a.jobRunId !== null && (
+                <span class="text-xs text-[var(--color-muted)]">job #{a.jobRunId}</span>
+              )}
+              <span class="text-xs text-[var(--color-muted)] ml-auto tabular-nums">
+                {a.createdAt.slice(0, 16).replace('T', ' ')}
+              </span>
+            </div>
+            <p class="mt-1">{a.message}</p>
+          </li>
+        ))}
+      </ul>
+    )}
+  </section>
+
+  <section>
+    <div class="flex items-baseline justify-between mb-3">
+      <h2 class="text-sm uppercase tracking-wider text-[var(--color-muted)]">
+        Lần chạy job gần nhất
+      </h2>
+      {tongJob !== null && (
+        <span class="text-xs text-[var(--color-muted)] tabular-nums">
+          {uocLuong ? '≈' : ''}{tongJob} lần chạy
+        </span>
+      )}
+    </div>
+
+    {jobRes.kind === 'error' ? (
+      <p class="text-sm text-[var(--color-notup)]">Không đọc được danh sách job: {jobRes.message}</p>
+    ) : (
+      <JobTable jobs={jobs} />
+    )}
+  </section>
+</AdminLayout>
