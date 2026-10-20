@@ -1,11 +1,19 @@
 /**
- * Kieu du lieu khop shared/contracts/openapi.yaml.
+ * Kieu du lieu khop API THAT cua main-service.
  *
- * Phase 1 viet tay. Phase 4 se sinh tu dong tu openapi.yaml va co kiem tra drift trong CI —
- * giong cach boilerplate cua anh lam voi GraphQL schema.
+ * # Phase 1 viet bang phong doan, Phase 4 sua theo thuc te
+ *
+ * Ban Phase 1 doan `asset` la ban ghi day du va `level` la chu thuong; API that tra mot tham
+ * chieu gon (`AssetRef`) voi `level` SCREAMING_SNAKE theo ADR-019. `DataStatus` cung khac han.
+ * Giu lai ghi chu nay de lan sau nho: kieu viet tay theo phong doan se lech, va cho no lech im
+ * lang la cach de trang hien `undefined`.
+ *
+ * Doi chieu that nam o `src/core/api/types.test.ts` — no doc truc tiep
+ * `shared/contracts/openapi.yaml` nen hai ben khong the lech nhau ma van xanh.
  */
 
-export type AssetLevel = 'market' | 'sector' | 'stock';
+/** Cap tai san. SCREAMING_SNAKE theo ADR-019, khop enum `asset_level` cua Postgres. */
+export type AssetLevel = 'MARKET' | 'SECTOR' | 'STOCK';
 
 export type ValidationStatus =
     | 'NOT_VALIDATED'
@@ -24,34 +32,30 @@ export type AbstainReason =
     | 'CALIBRATION_DEGRADED'
     | 'TARGET_SESSION_UNKNOWN';
 
-export interface Asset {
-    assetId: number;
+/** Tham chieu tai san trong phan hoi du bao. Gon hon ban ghi `asset` day du. */
+export interface AssetRef {
     level: AssetLevel;
     symbol: string;
     name: string;
     exchange: string | null;
-    currency: string;
-    icbCode: string | null;
-    status: 'ACTIVE' | 'SUSPENDED' | 'DELISTED';
-    listedFrom: string | null;
-    listedTo: string | null;
 }
 
 export interface HorizonForecast {
-    horizonSessions: 1 | 5 | 21 | 63 | 252;
+    horizonSessions: number;
     predictionStatus: PredictionStatus;
-    /** Null khi predictionStatus khong phai LIVE/STALE. */
+    /** `null` khi khong phat duoc. KHONG BAO GIO la 0.5 de thay cho "khong biet". */
     probabilityUp: number | null;
-    /** PHAN BU cua probabilityUp, gom ca gia di ngang. KHONG phai xac suat giam. */
+    /** PHAN BU cua `probabilityUp`, **gom ca gia di ngang**. Khong phai xac suat giam. */
     probabilityNotUp: number | null;
     targetDate: string | null;
     abstainReason: AbstainReason | null;
 }
 
 export interface ForecastResponse {
-    asset: Asset;
+    asset: AssetRef;
     asOf: string;
     dataThrough: string;
+    /** `{ho mo hinh}.{phien ban tap feature}` — phan dung chung cho moi ky han. */
     modelVersion: string;
     validationStatus: ValidationStatus;
     disclaimer: string;
@@ -60,41 +64,77 @@ export interface ForecastResponse {
 
 export interface DataStatus {
     latestTradingDate: string | null;
-    latestIngestAt: string | null;
-    latestComputeAt: string | null;
-    sessionsBehind: number;
-    isStale: boolean;
+    /** So ngay lich tu phien moi nhat toi hom nay. Lon nghia la du lieu dang cu. */
+    lagDays: number | null;
+    assetsWithPrices: number;
+    priceRows: number;
+    latestForecastAt: string | null;
+    liveForecasts: number;
+    abstainedForecasts: number;
+    /** Dang `"229/1754"` — ty le that, khong phai phan tram lam tron. */
+    corporateActionCoverage: string;
+    featureSetVersion: string;
     disclaimer: string;
-    sources: { code: string; enabled: boolean; lastSuccessAt: string | null }[];
 }
+
+/** Du lieu cu hon nguong nay thi trang phai noi ro. */
+export const STALE_LAG_DAYS = 5;
 
 /** Nhan tieng Viet cho ky han, tinh bang PHIEN chu khong phai ngay lich. */
 export const HORIZON_LABELS: Record<number, string> = {
-    1: 'Phien toi',
-    5: '1 tuan',
-    21: '1 thang',
-    63: '1 quy',
-    252: '1 nam',
+    1: 'Phiên tới',
+    5: '1 tuần',
+    21: '1 tháng',
+    63: '1 quý',
+    252: '1 năm',
 };
 
-/** Chi VALIDATED_PROSPECTIVE moi duoc mien canh bao. Khop ValidationStatus::requires_warning o Rust. */
+/**
+ * Chi `VALIDATED_PROSPECTIVE` moi duoc mien canh bao.
+ *
+ * Khop `ValidationStatus::requires_warning` o Rust. Moi trang thai khac deu phai co canh bao
+ * nhin thay duoc — rang buoc "khong hien xac suat tu tin khi chua kiem chung" cua de bai.
+ */
 export function requiresWarning(s: ValidationStatus): boolean {
     return s !== 'VALIDATED_PROSPECTIVE';
 }
 
 export const VALIDATION_LABELS: Record<ValidationStatus, string> = {
-    NOT_VALIDATED: 'Chua kiem chung',
-    BASELINE_ONLY: 'Chi co baseline',
-    VALIDATED_EXPLORATORY: 'Kiem chung so bo',
-    VALIDATED_PROSPECTIVE: 'Da kiem chung',
-    DEGRADED: 'Calibration bi troi',
+    NOT_VALIDATED: 'Chưa kiểm chứng',
+    BASELINE_ONLY: 'Không hơn baseline',
+    VALIDATED_EXPLORATORY: 'Kiểm chứng sơ bộ',
+    VALIDATED_PROSPECTIVE: 'Đã kiểm chứng',
+    DEGRADED: 'Calibration bị trôi',
 };
 
 export const ABSTAIN_LABELS: Record<AbstainReason, string> = {
-    INSUFFICIENT_HISTORY: 'Chua du lich su gia',
-    LOW_COVERAGE: 'Du lieu khong du day du',
-    INSUFFICIENT_TRAINING_DATA: 'Chua du mau huan luyen',
-    PENDING_CORPORATE_ACTION: 'Dang cho dong bo su kien doanh nghiep',
-    CALIBRATION_DEGRADED: 'Calibration bi troi',
-    TARGET_SESSION_UNKNOWN: 'Chua xac dinh duoc phien dich',
+    INSUFFICIENT_HISTORY: 'Chưa đủ lịch sử giá',
+    LOW_COVERAGE: 'Dữ liệu không đủ đầy đủ',
+    INSUFFICIENT_TRAINING_DATA: 'Chưa đủ quan sát độc lập',
+    PENDING_CORPORATE_ACTION: 'Đang chờ đồng bộ sự kiện doanh nghiệp',
+    CALIBRATION_DEGRADED: 'Calibration bị trôi',
+    TARGET_SESSION_UNKNOWN: 'Chưa xác định được phiên đích',
 };
+
+export const LEVEL_LABELS: Record<AssetLevel, string> = {
+    MARKET: 'Thị trường',
+    SECTOR: 'Ngành',
+    STOCK: 'Cổ phiếu',
+};
+
+/**
+ * Hien thi xac suat.
+ *
+ * `null` KHONG duoc hien thanh "50%" hay "0%" — tra ve `null` de cho goi tu quyet dinh cach noi
+ * "khong co so". Day la rang buoc nghiep vu, khong phai lua chon thiet ke.
+ */
+export function formatProbability(p: number | null): string | null {
+    if (p === null || !Number.isFinite(p)) return null;
+    return `${(p * 100).toFixed(1)}%`;
+}
+
+/** Nhan ky han, co ghi ro so phien de "1 thang" khong bi hieu la thang duong lich. */
+export function horizonLabel(h: number): string {
+    const label = HORIZON_LABELS[h];
+    return label ? `${label} (${h} phiên)` : `${h} phiên`;
+}

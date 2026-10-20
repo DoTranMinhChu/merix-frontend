@@ -1,0 +1,15 @@
+---
+/**
+ * `/asset?symbol=ACB` → chuyen huong sang `/asset/ACB`.
+ *
+ * Form tra cuu o trang chu dung `method="get"` nen trinh duyet gui `?symbol=`. Chuyen huong sang
+ * duong co ma trong path de trang chi tiet co URL chia se duoc, va de `[symbol].astro` la mot
+ * duong duy nhat chu khong phai hai.
+ */
+const symbol = (Astro.url.searchParams.get('symbol') ?? '').trim().toUpperCase();
+
+if (symbol) {
+    return Astro.redirect(`/asset/${encodeURIComponent(symbol)}`, 303);
+}
+return Astro.redirect('/', 303);
+---

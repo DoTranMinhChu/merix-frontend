@@ -1,0 +1,106 @@
+---
+/**
+ * Trang chi tiet mot tai san: day du 5 ky han.
+ *
+ * SSR: trang cong khai, can SEO va phai xem duoc ngay. Trinh duyet khong goi thang backend nen
+ * BACKEND_URL khong lo ra client va khong can CORS cho duong nay.
+ */
+import PublicLayout from '@layouts/PublicLayout.astro';
+import { apiGet } from '@core/api/client';
+import type { ForecastResponse } from '@core/api/types';
+import { LEVEL_LABELS } from '@core/api/types';
+import ForecastTable from '@modules/forecast/ForecastTable.astro';
+import ValidationBanner from '@modules/forecast/ValidationBanner.astro';
+
+const { symbol } = Astro.params;
+const ma = (symbol ?? '').trim().toUpperCase();
+
+const res = ma
+    ? await apiGet<ForecastResponse>(`/api/v1/forecasts?symbol=${encodeURIComponent(ma)}`)
+    : ({ kind: 'error', status: 400, code: 'MISSING_SYMBOL', message: 'Thiếu mã' } as const);
+
+// 404 that phai tra 404 that: trang "khong tim thay" voi ma 200 lam cong cu tim kiem index no.
+if (res.kind === 'error' && res.status === 404) {
+    Astro.response.status = 404;
+}
+
+const tieuDe = res.kind === 'ok' ? `${res.data.asset.symbol} — ${res.data.asset.name}` : ma || 'Tra cứu';
+---
+
+<PublicLayout
+  title={tieuDe}
+  description={
+    res.kind === 'ok'
+      ? `Xác suất tăng / không tăng của ${res.data.asset.symbol} ở 5 kỳ hạn.`
+      : 'Tra cứu xác suất tăng / không tăng.'
+  }
+>
+  <nav class="text-sm mb-6">
+    <a href="/" class="text-[var(--color-muted)] hover:underline">← Tổng quan</a>
+  </nav>
+
+  {res.kind === 'ok' ? (
+    <>
+      <header class="mb-6">
+        <div class="flex items-baseline gap-3 flex-wrap">
+          <h1 class="text-2xl font-bold">{res.data.asset.symbol}</h1>
+          <span class="text-xs rounded-full border border-[var(--color-line)] px-2 py-0.5 text-[var(--color-muted)]">
+            {LEVEL_LABELS[res.data.asset.level]}
+          </span>
+          {res.data.asset.exchange && (
+            <span class="text-xs text-[var(--color-muted)]">{res.data.asset.exchange}</span>
+          )}
+        </div>
+        <p class="text-[var(--color-muted)] mt-1">{res.data.asset.name}</p>
+      </header>
+
+      <div class="mb-6">
+        <ValidationBanner
+          status={res.data.validationStatus}
+          modelVersion={res.data.modelVersion}
+        />
+      </div>
+
+      <section class="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 mb-6">
+        <ForecastTable horizons={res.data.horizons} />
+      </section>
+
+      <section class="text-sm">
+        <h2 class="font-semibold mb-3">Dự báo này dựa trên gì</h2>
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6">
+          <dt class="text-[var(--color-muted)]">Thời điểm ra quyết định</dt>
+          <dd class="tabular-nums">{res.data.asOf}</dd>
+          <dt class="text-[var(--color-muted)]">Dữ liệu tới phiên</dt>
+          <dd class="tabular-nums">{res.data.dataThrough}</dd>
+          <dt class="text-[var(--color-muted)]">Mô hình</dt>
+          <dd><code class="text-xs">{res.data.modelVersion}</code></dd>
+        </dl>
+        <p class="text-xs text-[var(--color-muted)] mt-4 leading-relaxed">
+          <strong>Thời điểm ra quyết định</strong> là mốc mà mọi dữ liệu dùng để tính đều đã khả
+          dụng trước đó. <strong>Dữ liệu tới phiên</strong> là phiên giao dịch mới nhất có giá.
+          Hai mốc này khác nhau khi nguồn dữ liệu cập nhật trễ.
+        </p>
+      </section>
+    </>
+  ) : (
+    <section class="rounded-xl border border-[var(--color-warn)] bg-[var(--color-panel)] p-5">
+      <h1 class="text-lg font-semibold mb-2 text-[var(--color-warn)]">
+        {res.status === 404 ? 'Không có dữ liệu cho mã này' : 'Không lấy được dự báo'}
+      </h1>
+      <p class="text-sm text-[var(--color-muted)]">{res.message}</p>
+      {res.status === 404 && (
+        <p class="text-sm text-[var(--color-muted)] mt-3">
+          Có hai khả năng khác nhau: mã không tồn tại, hoặc mã có thật nhưng chưa được tính dự
+          báo. Thông báo ở trên nói rõ là khả năng nào.
+        </p>
+      )}
+      <p class="text-sm mt-4">
+        <a href="/" class="underline">Về trang tổng quan</a>
+      </p>
+    </section>
+  )}
+
+  <p slot="disclaimer">
+    {res.kind === 'ok' ? res.data.disclaimer : 'Thông tin nghiên cứu, không phải tư vấn đầu tư.'}
+  </p>
+</PublicLayout>

@@ -1,0 +1,66 @@
+---
+/**
+ * Bang xac suat theo ky han.
+ *
+ * # Ba rang buoc nghiep vu nam o day
+ *
+ * 1. `probabilityUp = null` hien thanh mot cau giai thich, KHONG thanh "50%" hay "0%".
+ * 2. `probabilityNotUp` goi dung ten: "khong tang", khong bao gio "giam". No gom ca gia di ngang.
+ * 3. Moi dong abstain phai noi VI SAO. Mot o trong khong giai thich duoc gi.
+ *
+ * Component nay khong goi API. No nhan du lieu da fetch, nen no test duoc bang gia tri cu the.
+ */
+import type { HorizonForecast } from '@core/api/types';
+import { ABSTAIN_LABELS, formatProbability, horizonLabel } from '@core/api/types';
+
+interface Props {
+    horizons: HorizonForecast[];
+}
+const { horizons } = Astro.props;
+
+const sorted = [...horizons].sort((a, b) => a.horizonSessions - b.horizonSessions);
+---
+
+<table class="w-full text-sm border-collapse">
+  <thead>
+    <tr class="text-left text-[var(--color-muted)] border-b border-[var(--color-line)]">
+      <th class="py-2 pr-4 font-medium">Kỳ hạn</th>
+      <th class="py-2 pr-4 font-medium">Xác suất tăng</th>
+      <th class="py-2 pr-4 font-medium">Xác suất không tăng</th>
+      <th class="py-2 font-medium">Phiên đích</th>
+    </tr>
+  </thead>
+  <tbody>
+    {sorted.map((h) => {
+      const up = formatProbability(h.probabilityUp);
+      const notUp = formatProbability(h.probabilityNotUp);
+      return (
+        <tr class="border-b border-[var(--color-line)] last:border-0">
+          <td class="py-3 pr-4 whitespace-nowrap">{horizonLabel(h.horizonSessions)}</td>
+          {up !== null && notUp !== null ? (
+            <>
+              <td class="py-3 pr-4 font-semibold tabular-nums">{up}</td>
+              <td class="py-3 pr-4 tabular-nums text-[var(--color-muted)]">{notUp}</td>
+            </>
+          ) : (
+            <td class="py-3 pr-4 text-[var(--color-muted)]" colspan="2">
+              <span class="font-medium">Không phát dự báo</span>
+              {' — '}
+              {h.abstainReason ? ABSTAIN_LABELS[h.abstainReason] : 'không rõ lý do'}
+            </td>
+          )}
+          <td class="py-3 text-[var(--color-muted)] tabular-nums whitespace-nowrap">
+            {h.targetDate ?? '—'}
+          </td>
+        </tr>
+      );
+    })}
+  </tbody>
+</table>
+
+<p class="mt-4 text-xs text-[var(--color-muted)] leading-relaxed">
+  <strong>"Không tăng" là phần bù của "tăng"</strong>, nên nó bao gồm cả trường hợp giá đi ngang.
+  Đây <strong>không phải</strong> xác suất giảm.
+  Phiên đích là ước lượng theo ngày làm việc; ngày chính xác phụ thuộc lịch nghỉ lễ chưa biết, và
+  sẽ được ghi lại đúng khi dự báo được chấm điểm.
+</p>

@@ -1,0 +1,54 @@
+---
+/**
+ * Canh bao muc do tin cay cua mo hinh.
+ *
+ * # Vi sao day la mot component rieng
+ *
+ * Rang buoc tu de bai: *"khong hien thi xac suat voi do tin cay cao neu chua kiem chung"*. Neu
+ * canh bao nam rai rac trong tung trang thi mot trang quen la rang buoc bi vi pham ma khong co gi
+ * do. Mot component, dung o moi noi co xac suat, va `requiresWarning` quyet dinh — khong phai
+ * nguoi viet trang.
+ */
+import type { ValidationStatus } from '@core/api/types';
+import { VALIDATION_LABELS, requiresWarning } from '@core/api/types';
+
+interface Props {
+    status: ValidationStatus;
+    modelVersion: string;
+}
+const { status, modelVersion } = Astro.props;
+const canhBao = requiresWarning(status);
+
+const GIAI_THICH: Record<ValidationStatus, string> = {
+    NOT_VALIDATED:
+        'Chưa có đủ dự báo đã chấm điểm để nói mô hình này tốt hay không. Con số bên dưới là kết quả tính toán, không phải kết quả đã được kiểm chứng.',
+    BASELINE_ONLY:
+        'Mô hình này KHÔNG tốt hơn baseline (tần suất tăng trong quá khứ). Dùng nó thay cho baseline không có cơ sở.',
+    VALIDATED_EXPLORATORY:
+        'Đã kiểm chứng trên dữ liệu quá khứ, nhưng cùng dữ liệu đó đã được xem nhiều lần trong quá trình phát triển. Chưa có kiểm chứng tiến cứu.',
+    VALIDATED_PROSPECTIVE:
+        'Đã kiểm chứng tiến cứu: dự báo được phát ra trước khi biết kết quả.',
+    DEGRADED:
+        'Calibration của mô hình đã trôi khỏi mức chấp nhận được. Xác suất bên dưới có thể lệch hệ thống.',
+};
+---
+
+<div
+  class:list={[
+    'rounded-xl border p-4 text-sm',
+    canhBao
+      ? 'border-[var(--color-warn)] bg-[var(--color-panel)]'
+      : 'border-[var(--color-line)] bg-[var(--color-panel)]',
+  ]}
+>
+  <div class="flex items-baseline gap-2 flex-wrap">
+    <span
+      class:list={[
+        'font-semibold',
+        canhBao ? 'text-[var(--color-warn)]' : '',
+      ]}>{VALIDATION_LABELS[status]}</span
+    >
+    <code class="text-xs text-[var(--color-muted)]">{modelVersion}</code>
+  </div>
+  <p class="mt-2 text-[var(--color-muted)] leading-relaxed">{GIAI_THICH[status]}</p>
+</div>

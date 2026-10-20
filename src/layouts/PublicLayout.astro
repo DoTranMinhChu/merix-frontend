@@ -11,7 +11,7 @@ const { title, description } = Astro.props;
 // Disclaimer o day la ban du phong cho cac trang khong goi API.
 // Trang co du bao PHAI dung chuoi tu payload API (truong `disclaimer`), vi do moi la nguon
 // bat buoc theo hop dong — xem shared/contracts/openapi.yaml.
-const FALLBACK_DISCLAIMER = 'Thong tin nghien cuu, khong phai tu van dau tu.';
+const FALLBACK_DISCLAIMER = 'Thông tin nghiên cứu, không phải tư vấn đầu tư.';
 ---
 
 <!doctype html>
@@ -25,7 +25,7 @@ const FALLBACK_DISCLAIMER = 'Thong tin nghien cuu, khong phai tu van dau tu.';
   <body class="min-h-screen flex flex-col">
     <header class="border-b border-[var(--color-line)] px-6 py-4">
       <a href="/" class="font-bold tracking-wide">{PUBLIC_APP_NAME}</a>
-      <span class="ml-3 text-xs text-[var(--color-muted)]">Xac suat tang / khong tang</span>
+      <span class="ml-3 text-xs text-[var(--color-muted)]">Xác suất tăng / không tăng</span>
     </header>
 
     <main class="flex-1 px-6 py-8 max-w-5xl mx-auto w-full">
