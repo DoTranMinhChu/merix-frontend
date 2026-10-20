@@ -20,9 +20,24 @@ const res = ma
     : ({ kind: 'error', status: 400, code: 'MISSING_SYMBOL', message: 'Thiếu mã' } as const);
 
 // 404 that phai tra 404 that: trang "khong tim thay" voi ma 200 lam cong cu tim kiem index no.
+// Ca `FORECAST_NOT_READY` cung la 404: khong co du bao thi khong co gi dang index.
 if (res.kind === 'error' && res.status === 404) {
     Astro.response.status = 404;
 }
+
+/**
+ * "Ma co that, chua co du bao" khac "khong co ma nay", va trang phai noi dung cai nao.
+ *
+ * Branch theo `code`, khong theo chuoi tieng Viet trong `message` — chuoi doi duoc bat ky luc nao
+ * ma khong ai nghi do la mot thay doi hop dong. Do duoc: 38/1.720 co phieu da co du bao, nen
+ * `FORECAST_NOT_READY` la nhanh pho bien chu khong phai truong hop hiem.
+ */
+const chuaCoDuBao = res.kind === 'error' && res.code === 'FORECAST_NOT_READY';
+const tieuDeLoi = chuaCoDuBao
+    ? 'Chưa có dự báo cho mã này'
+    : res.kind === 'error' && res.status === 404
+      ? 'Không tìm thấy mã này'
+      : 'Không lấy được dự báo';
 
 const tieuDe = res.kind === 'ok' ? `${res.data.asset.symbol} — ${res.data.asset.name}` : ma || 'Tra cứu';
 ---
@@ -84,16 +99,17 @@ const tieuDe = res.kind === 'ok' ? `${res.data.asset.symbol} — ${res.data.asse
     </>
   ) : (
     <section class="rounded-xl border border-[var(--color-warn)] bg-[var(--color-panel)] p-5">
-      <h1 class="text-lg font-semibold mb-2 text-[var(--color-warn)]">
-        {res.status === 404 ? 'Không có dữ liệu cho mã này' : 'Không lấy được dự báo'}
-      </h1>
+      <h1 class="text-lg font-semibold mb-2 text-[var(--color-warn)]">{tieuDeLoi}</h1>
       <p class="text-sm text-[var(--color-muted)]">{res.message}</p>
-      {res.status === 404 && (
-        <p class="text-sm text-[var(--color-muted)] mt-3">
-          Có hai khả năng khác nhau: mã không tồn tại, hoặc mã có thật nhưng chưa được tính dự
-          báo. Thông báo ở trên nói rõ là khả năng nào.
+
+      {chuaCoDuBao && (
+        <p class="text-sm text-[var(--color-muted)] mt-3 leading-relaxed">
+          Mã này <strong>có</strong> trong hệ thống. Dự báo được tính theo lô, nên một mã mới hoặc
+          một mã có chuỗi giá quá ngắn có thể chưa có dòng nào — và hệ thống nói ra điều đó thay vì
+          hiển thị một con số không có cơ sở.
         </p>
       )}
+
       <p class="text-sm mt-4">
         <a href="/" class="underline">Về trang tổng quan</a>
       </p>
