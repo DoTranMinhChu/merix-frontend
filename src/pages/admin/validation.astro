@@ -117,11 +117,25 @@ Astro.response.headers.set('Cache-Control', 'no-store');
 ---
 
 <AdminLayout title="Thẩm định mô hình">
-  <p class="text-sm text-[var(--color-muted)] mb-8 max-w-3xl">
-    Skill dương nghĩa là mô hình tốt hơn dự báo khí hậu (tỷ lệ tăng trong quá khứ); skill âm nghĩa
-    là <strong class="text-[var(--color-notup)]">tệ hơn</strong> dự báo khí hậu. Con số ở đây quyết
-    định mô hình nào được phát ra trang người dùng, nên nó được hiển thị cả khi nó xấu.
-  </p>
+  <div class="text-sm text-[var(--color-muted)] mb-8 max-w-3xl space-y-3">
+    <p>
+      Skill dương nghĩa là mô hình tốt hơn dự báo khí hậu (tỷ lệ tăng trong quá khứ); skill âm
+      nghĩa là <strong class="text-[var(--color-notup)]">tệ hơn</strong> dự báo khí hậu. Con số ở
+      đây quyết định mô hình nào được phát ra trang người dùng, nên nó được hiển thị cả khi nó xấu.
+    </p>
+    <p>
+      <strong class="text-[var(--color-ink)]">Đọc khoảng tin cậy trước, đọc skill sau.</strong>
+      Một mô hình chỉ được gán <code class="text-xs">VALIDATED_EXPLORATORY</code> khi
+      <strong>biên dưới</strong> của khoảng dương — không phải khi điểm ước lượng dương. Khoảng
+      chứa 0 nghĩa là không phân biệt được với dự báo khí hậu, dù skill có vẻ dương.
+    </p>
+    <p>
+      Khoảng được tính trên hiệu Brier <strong>ghép cặp</strong> với baseline, và mẫu số là mẫu
+      hiệu dụng <code class="text-xs">n/h</code> vì nhãn kỳ hạn <code class="text-xs">h</code> gối
+      nhau. Vì vậy kỳ hạn càng dài, khoảng càng rộng — ở 63 phiên nó rộng gấp khoảng 8 lần so với
+      1 phiên trên cùng số dự báo.
+    </p>
+  </div>
 
   <section class="mb-10">
     <h2 class="text-sm uppercase tracking-wider text-[var(--color-muted)] mb-3">Theo họ mô hình</h2>
@@ -190,6 +204,7 @@ Astro.response.headers.set('Cache-Control', 'no-store');
               <th class="py-2 pr-3 font-medium">n</th>
               <th class="py-2 pr-3 font-medium">Brier</th>
               <th class="py-2 pr-3 font-medium">Skill</th>
+              <th class="py-2 pr-3 font-medium">Khoảng tin cậy 95%</th>
               <th class="py-2 pr-3 font-medium">Log loss</th>
               <th class="py-2 pr-3 font-medium">Chính xác</th>
               <th class="py-2 pr-3 font-medium">Suy đoán ngành</th>
@@ -223,6 +238,26 @@ Astro.response.headers.set('Cache-Control', 'no-store');
                     ]}
                   >
                     {skillLabel(r.brierSkillPercent) ?? '—'}
+                  </td>
+                  {/* Khoảng tin cậy là cột quyết định `validationStatus`, nên nó đứng ngay cạnh
+                      skill. Khoảng chứa 0 nghĩa là không phân biệt được với dự báo khí hậu. */}
+                  <td class="py-2 pr-3 tabular-nums text-xs whitespace-nowrap">
+                    {r.brierSkillCiLow === null || r.brierSkillCiHigh === null ? (
+                      <span class="text-[var(--color-muted)]">chưa đo được</span>
+                    ) : (
+                      <span
+                        class:list={[
+                          r.brierSkillCiLow > 0
+                            ? 'text-[var(--color-up)]'
+                            : r.brierSkillCiHigh < 0
+                              ? 'text-[var(--color-notup)]'
+                              : 'text-[var(--color-muted)]',
+                        ]}
+                      >
+                        [{r.brierSkillCiLow.toFixed(2)}; {r.brierSkillCiHigh.toFixed(2)}]
+                        {r.brierSkillCiLow <= 0 && r.brierSkillCiHigh >= 0 && ' · chứa 0'}
+                      </span>
+                    )}
                   </td>
                   <td class="py-2 pr-3 tabular-nums text-[var(--color-muted)]">
                     {r.logLoss === null ? '—' : r.logLoss.toFixed(4)}

@@ -65,6 +65,15 @@ export interface ValidationRun {
     nForecasts: number;
     brier: number | null;
     brierSkillPercent: number | null;
+    /**
+     * Khoang tin cay 95% cua skill.
+     *
+     * Day la cot quyet dinh, khong phai cot trang tri: `validationStatus` duoc gan theo
+     * `brierSkillCiLow > 0`, khong theo `brierSkillPercent > 0`. Do duoc tren du lieu that: dung
+     * diem uoc luong thi 10 mo hinh duoc goi la da kiem chung; dung khoang thi con **1**.
+     */
+    brierSkillCiLow: number | null;
+    brierSkillCiHigh: number | null;
     logLoss: number | null;
     accuracy: number | null;
     /** ADR-010: ty le lien ket nganh la suy doan. Bat buoc hien thi. */
