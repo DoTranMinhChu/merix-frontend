@@ -36,30 +36,70 @@ if (Astro.request.method === 'POST') {
     if (!nguonGocHopLe(Astro.request, Astro.url)) return tuChoiKhacNguon();
 
     const form = await Astro.request.formData();
-    const jobType = String(form.get('jobType') ?? '');
+    // Trang có hai hành động ghi. Phân biệt bằng trường tường minh, không suy ra từ việc trường
+    // nào có mặt — suy ra thì một form thiếu trường sẽ chạy nhầm hành động.
+    const hanhDong = String(form.get('action') ?? '');
 
-    // Kiem ca o day du backend cung kiem: gui mot gia tri khong co trong danh sach nghia la form
-    // bi sua tay, va tu choi ngay o SSR thi khong ton mot vong goi API.
-    if (!(JOB_TYPES as readonly string[]).includes(jobType)) {
-        thongBao = { ok: false, text: `Loại job không hợp lệ: ${jobType}` };
-    } else {
-        const res = await adminPost<{
-            jobRunId: number | null;
-            jobType: string;
-            idempotencyKey: string;
-            created: boolean;
-        }>('/api/v1/admin/job-runs', token, { jobType, params: {} });
+    if (hanhDong === 'ack') {
+        const ids = String(form.get('alertId') ?? '').trim();
+        const code = String(form.get('code') ?? '').trim();
+        const jobRunId = String(form.get('jobRunId') ?? '').trim();
 
-        if (res.kind === 'ok') {
-            thongBao = res.data.created
-                ? { ok: true, text: `Đã xếp job #${res.data.jobRunId} · ${res.data.jobType}` }
-                : {
-                      ok: true,
-                      // `created: false` KHONG phai loi — do la chong trung dang lam viec.
-                      text: `${res.data.jobType} đã được xếp trong phút này rồi, không tạo thêm.`,
-                  };
+        // Backend từ chối body không có tiêu chí, nhưng từ chối luôn ở đây thì tiết kiệm một
+        // vòng gọi API và thông báo nói đúng ngữ cảnh của trang.
+        if (!ids && !code) {
+            thongBao = { ok: false, text: 'Không có cảnh báo nào được chọn.' };
         } else {
-            thongBao = { ok: false, text: res.message };
+            const body: Record<string, unknown> = {};
+            if (ids) body.alertIds = [Number(ids)];
+            if (code) {
+                body.code = code;
+                if (jobRunId) body.jobRunId = Number(jobRunId);
+            }
+
+            const res = await adminPost<{ acknowledged: number }>(
+                '/api/v1/admin/alerts/acknowledge',
+                token,
+                body,
+            );
+            thongBao =
+                res.kind === 'ok'
+                    ? {
+                          ok: true,
+                          // 0 dòng không phải lỗi: ai đó vừa xác nhận trước, hoặc F5 lại trang.
+                          text:
+                              res.data.acknowledged > 0
+                                  ? `Đã xác nhận ${res.data.acknowledged} cảnh báo.`
+                                  : 'Không có dòng nào đổi — các cảnh báo này đã được xác nhận.',
+                      }
+                    : { ok: false, text: res.message };
+        }
+    } else {
+        const jobType = String(form.get('jobType') ?? '');
+
+        // Kiem ca o day du backend cung kiem: gui mot gia tri khong co trong danh sach nghia la
+        // form bi sua tay, va tu choi ngay o SSR thi khong ton mot vong goi API.
+        if (!(JOB_TYPES as readonly string[]).includes(jobType)) {
+            thongBao = { ok: false, text: `Loại job không hợp lệ: ${jobType}` };
+        } else {
+            const res = await adminPost<{
+                jobRunId: number | null;
+                jobType: string;
+                idempotencyKey: string;
+                created: boolean;
+            }>('/api/v1/admin/job-runs', token, { jobType, params: {} });
+
+            if (res.kind === 'ok') {
+                thongBao = res.data.created
+                    ? { ok: true, text: `Đã xếp job #${res.data.jobRunId} · ${res.data.jobType}` }
+                    : {
+                          ok: true,
+                          // `created: false` KHONG phai loi — do la chong trung dang lam viec.
+                          text: `${res.data.jobType} đã được xếp trong phút này rồi, không tạo thêm.`,
+                      };
+            } else {
+                thongBao = { ok: false, text: res.message };
+            }
         }
     }
 }
@@ -115,6 +155,16 @@ const tongInfo = infoRes.kind === 'ok' ? infoRes.data.pageInfo.totalCount : null
 
 const tongJob = jobRes.kind === 'ok' ? jobRes.data.pageInfo.totalCount : null;
 const uocLuong = jobRes.kind === 'ok' && jobRes.data.pageInfo.totalIsEstimate === true;
+
+/**
+ * Dem theo ma, trong so dong DANG HIEN.
+ *
+ * Chi de quyet dinh co ve nut "da xem ca nhom" hay khong: mot ma chi xuat hien mot lan thi nut
+ * nhom khong them gi. Day **khong** phai tong so dong mang ma do — tong do nam o server, va nut
+ * nhom xac nhan dung tong do, khong chi 25 dong dang hien.
+ */
+const theoMa = new Map<string, number>();
+for (const a of nghiemTrong) theoMa.set(a.code, (theoMa.get(a.code) ?? 0) + 1);
 
 const SEVERITY_MAU: Record<string, string> = {
     CRITICAL: 'text-[var(--color-notup)]',
@@ -218,6 +268,38 @@ Astro.response.headers.set('Cache-Control', 'no-store');
               </span>
             </div>
             <p class="mt-1">{a.message}</p>
+
+            <div class="mt-2 flex flex-wrap gap-3 items-baseline">
+              <form method="post">
+                <input type="hidden" name="action" value="ack" />
+                <input type="hidden" name="alertId" value={a.alertId} />
+                <button
+                  type="submit"
+                  class="text-xs underline text-[var(--color-muted)] hover:text-[var(--color-ink)]"
+                >
+                  Đã xem
+                </button>
+              </form>
+
+              {/* Xác nhận cả nhóm: 137 cảnh báo phần lớn cùng một mã từ cùng một job, nên
+                  bấm từng dòng nghĩa là không ai bấm. */}
+              {(theoMa.get(a.code) ?? 0) > 1 && (
+                <form method="post">
+                  <input type="hidden" name="action" value="ack" />
+                  <input type="hidden" name="code" value={a.code} />
+                  {a.jobRunId !== null && (
+                    <input type="hidden" name="jobRunId" value={a.jobRunId} />
+                  )}
+                  <button
+                    type="submit"
+                    class="text-xs underline text-[var(--color-muted)] hover:text-[var(--color-ink)]"
+                  >
+                    Đã xem cả {a.code}
+                    {a.jobRunId !== null && ` của job #${a.jobRunId}`}
+                  </button>
+                </form>
+              )}
+            </div>
           </li>
         ))}
       </ul>
