@@ -30,7 +30,19 @@ export type AbstainReason =
     | 'INSUFFICIENT_TRAINING_DATA'
     | 'PENDING_CORPORATE_ACTION'
     | 'CALIBRATION_DEGRADED'
-    | 'TARGET_SESSION_UNKNOWN';
+    | 'TARGET_SESSION_UNKNOWN'
+    | 'NO_PARENT_SERIES'
+    | 'TARGET_AXIS_MISMATCH';
+
+/**
+ * Con so `probabilityUp` tra loi cau hoi nao. Chuoi chinh xac cua backend (`merix_plugins::engines`).
+ * Hop dong khai no la `string` tu do, nen day la kieu viet tay; gia tri la khong biet thi
+ * `describeHorizon` (target.ts) khong duoc noi "xac suat tang".
+ */
+export type TargetDefinition =
+    | 'LOG_RETURN_ABSOLUTE_TOTAL_RETURN'
+    | 'LOG_RETURN_RELATIVE_TO_MARKET'
+    | 'LOG_RETURN_RELATIVE_TO_SECTOR';
 
 /** Tham chieu tai san trong phan hoi du bao. Gon hon ban ghi `asset` day du. */
 export interface AssetRef {
@@ -42,6 +54,8 @@ export interface AssetRef {
 
 export interface HorizonForecast {
     horizonSessions: number;
+    /** Mot ky han co the xuat hien HAI lan voi muc tieu khac nhau; luon chon theo ca hai. */
+    targetDefinition: TargetDefinition;
     /** Per-horizon evidence; optional while older API servers are upgraded. */
     asOf?: string;
     dataThrough?: string;
@@ -119,6 +133,8 @@ export const ABSTAIN_LABELS: Record<AbstainReason, string> = {
     PENDING_CORPORATE_ACTION: 'Đang chờ đồng bộ sự kiện doanh nghiệp',
     CALIBRATION_DEGRADED: 'Calibration bị trôi',
     TARGET_SESSION_UNKNOWN: 'Chưa xác định được phiên đích',
+    NO_PARENT_SERIES: 'Chưa có chuỗi đối chiếu (thị trường/ngành) để so sánh',
+    TARGET_AXIS_MISMATCH: 'Chuỗi đối chiếu lệch trục thời gian với tài sản',
 };
 
 export const LEVEL_LABELS: Record<AssetLevel, string> = {

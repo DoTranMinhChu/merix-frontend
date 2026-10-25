@@ -6,7 +6,15 @@ export const GET: APIRoute = async ({ url }) => {
   const routes: Record<string, { path: string; params: string[] }> = {
     snapshot: {
       path: "/api/v1/market-snapshot",
-      params: ["level", "search", "sector", "symbols", "after", "limit"],
+      params: [
+        "level",
+        "search",
+        "sector",
+        "symbols",
+        "after",
+        "limit",
+        "horizon",
+      ],
     },
     series: { path: "/api/v1/market-series", params: ["symbol", "limit"] },
     forecast: { path: "/api/v1/forecasts", params: ["symbol"] },

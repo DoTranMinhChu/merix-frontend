@@ -7,50 +7,69 @@
  * 1. `probabilityUp = null` hien thanh mot cau giai thich, KHONG thanh "50%" hay "0%".
  * 2. `probabilityNotUp` goi dung ten: "khong tang", khong bao gio "giam". No gom ca gia di ngang.
  * 3. Moi dong abstain phai noi VI SAO. Mot o trong khong giai thich duoc gi.
+ * 4. Moi ky han co the xuat hien nhieu lan (muc tuyet doi + hai muc tuong doi). Moi dong mang
+ *    huy hieu muc tieu; dong tuyet doi luon dung truoc; ten con so lay tu `describeHorizon`
+ *    nen muc tuong doi khong bao gio duoc goi la "xac suat tang".
  *
  * Component nay khong goi API. No nhan du lieu da fetch, nen no test duoc bang gia tri cu the.
  */
 import type { HorizonForecast } from '@core/api/types';
-import { ABSTAIN_LABELS, VALIDATION_LABELS, formatProbability, horizonLabel } from '@core/api/types';
+import { VALIDATION_LABELS, horizonLabel } from '@core/api/types';
+import { TARGET_ABSOLUTE, TARGET_RELATIVE_MARKET, describeHorizon } from '@core/api/target';
 
 interface Props {
     horizons: HorizonForecast[];
 }
 const { horizons } = Astro.props;
 
-const sorted = [...horizons].sort((a, b) => a.horizonSessions - b.horizonSessions);
+// Thu tu tuong minh: ky han, roi tuyet doi < thi truong < nganh. Khong dua vao bang chu cai.
+const thuTu = (t: string) => (t === TARGET_ABSOLUTE ? 0 : t === TARGET_RELATIVE_MARKET ? 1 : 2);
+const sorted = [...horizons].sort(
+  (a, b) => a.horizonSessions - b.horizonSessions || thuTu(a.targetDefinition) - thuTu(b.targetDefinition),
+);
 ---
 
 <table class="w-full text-sm border-collapse">
   <caption class="sr-only">
-    Xác suất tăng và không tăng theo từng kỳ hạn dự báo, kèm phiên đích
+    Xác suất theo từng kỳ hạn và từng mục tiêu dự báo (giá tuyệt đối, so với thị trường, so với ngành), kèm phiên đích
   </caption>
   <thead>
     <tr class="text-left text-[var(--color-muted)] border-b border-[var(--color-line)]">
       <th scope="col" class="py-2 pr-4 font-medium">Kỳ hạn</th>
-      <th scope="col" class="py-2 pr-4 font-medium">Xác suất tăng</th>
-      <th scope="col" class="py-2 pr-4 font-medium">Xác suất không tăng</th>
+      <th scope="col" class="py-2 pr-4 font-medium">Mục tiêu</th>
+      <th scope="col" class="py-2 pr-4 font-medium">Xác suất</th>
+      <th scope="col" class="py-2 pr-4 font-medium">Phần bù</th>
       <th scope="col" class="py-2 font-medium">Phiên đích</th>
       <th scope="col" class="py-2 font-medium">Kiểm chứng / dữ liệu</th>
     </tr>
   </thead>
   <tbody>
     {sorted.map((h) => {
-      const up = formatProbability(h.probabilityUp);
-      const notUp = formatProbability(h.probabilityNotUp);
+      const v = describeHorizon(h);
+      const tuyetDoi = h.targetDefinition === TARGET_ABSOLUTE;
       return (
-        <tr class="border-b border-[var(--color-line)] last:border-0">
+        <tr class:list={['border-b border-[var(--color-line)] last:border-0', !tuyetDoi && 'target-row-relative']}>
           <td class="py-3 pr-4 whitespace-nowrap">{horizonLabel(h.horizonSessions)}</td>
-          {up !== null && notUp !== null ? (
+          <td class="py-3 pr-4 whitespace-nowrap">
+            <span class={`target-badge ${v.target.css}`} title={v.target.question}>{v.target.name}</span>
+          </td>
+          {v.state.kind === 'signal' ? (
             <>
-              <td class="py-3 pr-4 font-semibold tabular-nums">{up}</td>
-              <td class="py-3 pr-4 tabular-nums text-[var(--color-muted)]">{notUp}</td>
+              <td class="py-3 pr-4 font-semibold tabular-nums">
+                {v.valueText}
+                <small class="table-status-date">{v.headline}</small>
+              </td>
+              <td class="py-3 pr-4 tabular-nums text-[var(--color-muted)]">
+                {v.complementText}
+                <small class="table-status-date">{v.complementLabel}</small>
+              </td>
             </>
           ) : (
             <td class="py-3 pr-4 text-[var(--color-muted)]" colspan="2">
-              <span class="font-medium">Không phát dự báo</span>
+              <span class={`state-label state-${v.state.kind}`}>{v.stateLabel}</span>
               {' — '}
-              {h.abstainReason ? ABSTAIN_LABELS[h.abstainReason] : 'không rõ lý do'}
+              {v.stateNote}
+              {v.state.kind !== 'refused' && <small class="table-status-date">Con số mô hình: {v.valueText} ({v.headline.toLowerCase()})</small>}
             </td>
           )}
           <td class="py-3 text-[var(--color-muted)] tabular-nums whitespace-nowrap">
@@ -69,6 +88,8 @@ const sorted = [...horizons].sort((a, b) => a.horizonSessions - b.horizonSession
 <p class="mt-4 text-xs text-[var(--color-muted)] leading-relaxed">
   <strong>"Không tăng" là phần bù của "tăng"</strong>, nên nó bao gồm cả trường hợp giá đi ngang.
   Đây <strong>không phải</strong> xác suất giảm.
+  Dòng <strong>"So với thị trường"</strong> và <strong>"So với ngành"</strong> trả lời một câu hỏi khác
+  (có vượt đối chiếu không) và <strong>không cho biết giá lên hay xuống</strong>; đừng đọc chúng như xác suất tăng.
   Phiên đích là ước lượng theo ngày làm việc; ngày chính xác phụ thuộc lịch nghỉ lễ chưa biết, và
   sẽ được ghi lại đúng khi dự báo được chấm điểm.
 </p>

@@ -1918,6 +1918,16 @@
             }
           },
           {
+            "name": "horizon",
+            "in": "query",
+            "description": "Horizon in sessions, 1–252; default 5",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "description": "1–100; default 24",
@@ -2248,14 +2258,16 @@
     "schemas": {
       "AbstainReason": {
         "type": "string",
-        "description": "Lý do một dự báo không được phát ra — giá trị của `abstainReason`.\n\nĐây là bản **mô tả cho hợp đồng**: giá trị thật đi từ cột `forecast.abstain_reason` (chuỗi),\nnên trường trong phản hồi vẫn là `String` ở phía Rust. Enum này tồn tại để `/openapi.json`\nkhai danh sách giá trị hợp lệ; test ở cuối file buộc nó khớp `merix_registry::AbstainReason`.",
+        "description": "Lý do một dự báo không được phát ra — giá trị của `abstainReason`.\n\nĐây là bản **mô tả cho hợp đồng**: giá trị thật đi từ cột `forecast.abstain_reason` (chuỗi),\nnên trường trong phản hồi vẫn là `String` ở phía Rust. Enum này tồn tại để `/openapi.json`\nkhai danh sách giá trị hợp lệ. Enum này viết tay, nên được giữ khớp `merix_registry::AbstainReason`\nbằng hai phép kiểm: độ dài `ALL` gắn với `COUNT` của registry (lệch số lượng là lỗi biên dịch)\nvà test `abstain_reason_schema_khop_registry` (lệch tên là test đỏ).",
         "enum": [
           "INSUFFICIENT_HISTORY",
           "LOW_COVERAGE",
           "INSUFFICIENT_TRAINING_DATA",
           "PENDING_CORPORATE_ACTION",
           "CALIBRATION_DEGRADED",
-          "TARGET_SESSION_UNKNOWN"
+          "TARGET_SESSION_UNKNOWN",
+          "NO_PARENT_SERIES",
+          "TARGET_AXIS_MISMATCH"
         ]
       },
       "AcknowledgeInput": {
@@ -3205,6 +3217,7 @@
         "type": "object",
         "required": [
           "horizonSessions",
+          "targetDefinition",
           "asOf",
           "dataThrough",
           "modelVersion",
@@ -3260,6 +3273,10 @@
               "string",
               "null"
             ]
+          },
+          "targetDefinition": {
+            "type": "string",
+            "description": "Con số `probabilityUp` trả lời câu hỏi nào. Mỗi cấp tài sản có hai engine với mục tiêu khác\nnhau nên một kỳ hạn có thể xuất hiện hai lần: `LOG_RETURN_ABSOLUTE_TOTAL_RETURN` là \"giá có\ntăng không\", `LOG_RETURN_RELATIVE_TO_*` là \"có thắng đối chiếu không\". Hai xác suất này\n**không so sánh được với nhau**, nên trường đi theo từng kỳ hạn chứ không ở đầu phản hồi."
           },
           "validationStatus": {
             "type": "string"
@@ -3785,6 +3802,7 @@
       "SnapshotForecast": {
         "type": "object",
         "required": [
+          "targetDefinition",
           "predictionStatus",
           "validationStatus",
           "dataThrough",
@@ -3827,6 +3845,10 @@
               "null"
             ],
             "format": "double"
+          },
+          "targetDefinition": {
+            "type": "string",
+            "description": "Mục tiêu mà `probabilityUp` trả lời. Snapshot luôn là mục tiêu tuyệt đối (\"giá có tăng không\")."
           },
           "validationStatus": {
             "type": "string"

@@ -4,6 +4,7 @@
   PredictionStatus,
   ValidationStatus,
   AbstainReason,
+  TargetDefinition,
 } from "./types";
 export interface PricePoint {
   date: string;
@@ -11,6 +12,8 @@ export interface PricePoint {
   volume: number | null;
 }
 export interface SnapshotForecast {
+  /** Snapshot chi bao muc tieu tuyet doi; truong nay de giao dien kiem lai chu khong gia dinh. */
+  targetDefinition: TargetDefinition;
   probabilityUp: number | null;
   probabilityNotUp: number | null;
   predictionStatus: PredictionStatus;

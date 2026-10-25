@@ -2994,3 +2994,113 @@ button:disabled {
   background: var(--panel);
   z-index: 2;
 }
+
+/* Muc tieu cua con so — ba huy hieu phai khac nhau bang mat, khong chi bang chu.
+   Tuyet doi: nen dac mau mint. Tuong doi: vien net dut, khong nen. (Xem core/api/target.ts) */
+.target-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.target-badge.target-absolute {
+  background: var(--mint-soft);
+  border-color: var(--mint);
+  color: var(--mint);
+}
+.target-badge.target-market {
+  background: transparent;
+  border: 1px dashed var(--amber);
+  color: var(--amber);
+}
+.target-badge.target-sector {
+  background: transparent;
+  border: 1px dashed #7fb2e5;
+  color: #7fb2e5;
+}
+.target-badge.target-unknown {
+  background: transparent;
+  border: 1px dotted var(--muted);
+  color: var(--muted);
+}
+.target-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+}
+.target-line small {
+  color: var(--muted);
+}
+.relative-block {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+.relative-block h3 {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.relative-block ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.target-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.target-row small {
+  color: var(--muted);
+}
+/* Ba trang thai hien thi: tu choi / chua co co so / khong co tin hieu. */
+.state-label {
+  display: inline-block;
+  font-weight: 600;
+  font-size: 12px;
+}
+.state-label.state-refused,
+.state-refused {
+  color: var(--red);
+}
+.state-label.state-no-basis {
+  color: var(--amber);
+}
+.state-label.state-no-signal {
+  color: var(--muted);
+}
+.state-number {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+small.state-number {
+  display: block;
+}
+.state-block {
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+.state-block p {
+  margin: 4px 0;
+  color: var(--muted);
+}
+.state-block.state-no-basis {
+  border-color: var(--amber);
+}
+.state-block.state-no-basis > strong {
+  color: var(--amber);
+}
+.state-block.state-no-signal > strong {
+  color: var(--muted);
+}

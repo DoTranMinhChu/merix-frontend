@@ -7,11 +7,8 @@
   stale,
   type MarketSeries,
 } from "@core/api/market";
-import {
-  ABSTAIN_LABELS,
-  VALIDATION_LABELS,
-  type ForecastResponse,
-} from "@core/api/types";
+import type { ForecastResponse } from "@core/api/types";
+import { probabilityBodyHtml } from "./probabilityView";
 export async function getData<T>(
   kind: string,
   params: Record<string, string>,
@@ -88,25 +85,8 @@ export function renderProbability(
   const target = document.querySelector("#probability-body");
   if (!target) return;
   document.querySelector("#horizon-label")!.textContent = `${horizon} phiên`;
-  const h = forecast?.horizons.find((h) => h.horizonSessions === horizon);
-  const p = h?.probabilityUp ?? null;
-  const state = h?.predictionStatus;
-  const available =
-    p !== null &&
-    Number.isFinite(p) &&
-    p >= 0 &&
-    p <= 1 &&
-    state !== "UNAVAILABLE" &&
-    state !== "ABSTAINED";
-  target.innerHTML = available
-    ? `<div class="probability-gauge"><svg viewBox="0 0 250 145" aria-hidden="true"><path d="M25 125 A100 100 0 0 1 225 125" class="gauge-track"/><path d="M25 125 A100 100 0 0 1 225 125" class="gauge-value" pathLength="100" stroke-dasharray="${p * 100} 100"/><text x="18" y="144">0%</text><text x="209" y="144">100%</text></svg><div><span>${percent(p)}</span><small>Xác suất tăng</small></div></div><div class="probability-breakdown"><span>Tăng <strong>${percent(p)}</strong></span><span>Không tăng <strong>${percent(h?.probabilityNotUp)}</strong></span></div>`
-    : `<p class="panel-empty">Không phát dự báo<br>${e(h?.abstainReason ? ABSTAIN_LABELS[h.abstainReason] : (error ?? "Chưa có kết quả cho kỳ hạn này."))}</p>`;
-  if (forecast) {
-    target.insertAdjacentHTML(
-      "beforeend",
-      `<div class="model-note"><div><strong>${e(VALIDATION_LABELS[h?.validationStatus ?? forecast.validationStatus])}</strong><p>${(h?.validationStatus ?? forecast.validationStatus) === "VALIDATED_PROSPECTIVE" ? "Đã kiểm chứng tiến cứu; vẫn có sai số." : (h?.validationStatus ?? forecast.validationStatus) === "BASELINE_ONLY" ? "Mô hình không tốt hơn tần suất tăng trong quá khứ." : "Chưa có bằng chứng kiểm chứng tiến cứu đáng tin cậy. Xác suất không phải mức độ chắc chắn."}</p></div></div><p class="probability-meta">Dữ liệu tới ${e(h?.dataThrough ?? forecast.dataThrough)}${stale(h?.dataThrough ?? forecast.dataThrough) || h?.predictionStatus === "STALE" ? " · Dữ liệu đã cũ" : ""}<br>Mô hình: ${e(h?.modelVersion ?? forecast.modelVersion)}<br>Phiên đích: ${e(h?.targetDate ?? "Chưa xác định")}<br><a href="/asset/${encodeURIComponent(forecast.asset.symbol)}">Xem đủ 5 kỳ hạn ↗</a></p>`,
-    );
-  }
+  // Chon dong va dat ten con so deu o probabilityView/target: day khong tu `find` theo ky han.
+  target.innerHTML = probabilityBodyHtml(forecast, horizon, error);
 }
 export function toast(message: string) {
   const element = document.querySelector<HTMLElement>("#app-toast");

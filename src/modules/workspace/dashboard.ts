@@ -16,13 +16,15 @@ import {
   type ForecastResponse,
 } from "@core/api/types";
 import { getData, renderChart, renderProbability, toast } from "./charts";
+import { compactProbabilityHtml } from "./probabilityView";
+import { DEFAULT_HORIZON } from "@core/api/target";
 const root = document.querySelector<HTMLElement>("#workspace-data");
 if (root) {
   const data = JSON.parse(root.dataset.initial!) as WorkspaceData;
   const $ = <T extends HTMLElement = HTMLElement>(selector: string) =>
     document.querySelector<T>(selector)!;
   let symbol = data.selected,
-    horizon = 21,
+    horizon = DEFAULT_HORIZON,
     period = 63,
     forecast = data.forecast;
   let items = data.stocks?.items ?? [],
@@ -64,7 +66,7 @@ if (root) {
     const last = a.prices.at(-1),
       c = priceChange(a.prices),
       f = a.forecast;
-    return `<tr data-stock="${e(a.symbol)}"><td><button class="star-button" data-star="${e(a.symbol)}" aria-label="Theo dõi ${e(a.symbol)}" aria-pressed="false">☆</button></td><th scope="row"><a class="asset-button" href="/asset/${encodeURIComponent(a.symbol)}"><span class="asset-avatar">${e(a.symbol[0])}</span><span>${e(a.symbol)}<small>${e(a.name)}</small></span></a></th><td class="numeric price-cell">${money(last?.close)}<small class="change ${c !== null && c < 0 ? "negative" : ""}">${c === null ? "—" : `${c > 0 ? "+" : ""}${percent(c)}`}</small><span class="table-status-date">${e(last?.date ?? "Chưa có giá")}</span></td><td class="numeric"><strong class="table-probability ${(f?.probabilityUp ?? 1) < 0.5 ? "negative" : ""}">${percent(f?.probabilityUp)}</strong></td><td><span class="stock-filter-label">${e(a.exchange ?? "—")}</span></td><td><span class="model-badge">${e(f ? VALIDATION_LABELS[f.validationStatus] : "Chưa có dự báo")}</span>${f?.probabilityUp == null ? `<small class="table-status-date">${e(f?.abstainReason ? ABSTAIN_LABELS[f.abstainReason] : "Chưa đủ kết quả")}</small>` : ""}${f && (stale(f.dataThrough) || f.predictionStatus === "STALE") ? `<small class="table-status-date negative">Dự báo cũ · ${e(f.dataThrough)}</small>` : ""}${last && stale(last.date) ? '<small class="table-status-date negative">Giá đã cũ</small>' : ""}</td></tr>`;
+    return `<tr data-stock="${e(a.symbol)}"><td><button class="star-button" data-star="${e(a.symbol)}" aria-label="Theo dõi ${e(a.symbol)}" aria-pressed="false">☆</button></td><th scope="row"><a class="asset-button" href="/asset/${encodeURIComponent(a.symbol)}"><span class="asset-avatar">${e(a.symbol[0])}</span><span>${e(a.symbol)}<small>${e(a.name)}</small></span></a></th><td class="numeric price-cell">${money(last?.close)}<small class="change ${c !== null && c < 0 ? "negative" : ""}">${c === null ? "—" : `${c > 0 ? "+" : ""}${percent(c)}`}</small><span class="table-status-date">${e(last?.date ?? "Chưa có giá")}</span></td><td class="numeric">${compactProbabilityHtml(f)}</td><td><span class="stock-filter-label">${e(a.exchange ?? "—")}</span></td><td><span class="model-badge">${e(f ? VALIDATION_LABELS[f.validationStatus] : "Chưa có dự báo")}</span>${f?.probabilityUp == null ? `<small class="table-status-date">${e(f?.abstainReason ? ABSTAIN_LABELS[f.abstainReason] : "Chưa đủ kết quả")}</small>` : ""}${f && (stale(f.dataThrough) || f.predictionStatus === "STALE") ? `<small class="table-status-date negative">Dự báo cũ · ${e(f.dataThrough)}</small>` : ""}${last && stale(last.date) ? '<small class="table-status-date negative">Giá đã cũ</small>' : ""}</td></tr>`;
   }
   function renderRows() {
     $("#stocks-body").innerHTML = items.map(row).join("");
@@ -104,7 +106,11 @@ if (root) {
           "Danh sách được lưu trên thiết bị này.";
         return;
       }
-      const params: Record<string, string> = { level: "STOCK", limit: "24" };
+      const params: Record<string, string> = {
+        level: "STOCK",
+        limit: "24",
+        horizon: String(DEFAULT_HORIZON),
+      };
       if (search) params.search = search;
       if (sector) params.sector = sector;
       if (filter === "watchlist") params.symbols = saved.join(",");
