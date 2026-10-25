@@ -3277,7 +3277,7 @@
             ]
           },
           "targetDefinition": {
-            "type": "string",
+            "$ref": "#/components/schemas/TargetDefinition",
             "description": "Con số `probabilityUp` trả lời câu hỏi nào. Mỗi cấp tài sản có hai engine với mục tiêu khác\nnhau nên một kỳ hạn có thể xuất hiện hai lần: `LOG_RETURN_ABSOLUTE_TOTAL_RETURN` là \"giá có\ntăng không\", `LOG_RETURN_RELATIVE_TO_*` là \"có thắng đối chiếu không\". Hai xác suất này\n**không so sánh được với nhau**, nên trường đi theo từng kỳ hạn chứ không ở đầu phản hồi."
           },
           "validationStatus": {
@@ -3849,13 +3849,22 @@
             "format": "double"
           },
           "targetDefinition": {
-            "type": "string",
+            "$ref": "#/components/schemas/TargetDefinition",
             "description": "Mục tiêu mà `probabilityUp` trả lời. Snapshot luôn là mục tiêu tuyệt đối (\"giá có tăng không\")."
           },
           "validationStatus": {
             "type": "string"
           }
         }
+      },
+      "TargetDefinition": {
+        "type": "string",
+        "description": "Con số `probabilityUp` trả lời câu hỏi nào — giá trị của `targetDefinition`.\n\nCùng khuôn với [`AbstainReason`] ngay trên, và cùng lý do. Trường trong phản hồi vẫn là\n`String` phía Rust (giá trị đi thẳng từ cột `forecast.target_definition`); enum này tồn tại để\n`/openapi.json` **khai danh sách giá trị hợp lệ**, thay vì `{\"type\":\"string\"}`.\n\n# Vì sao một chuỗi tự do là không đủ\n\n`targetDefinition` là trường đầu đề của cả hệ: nó nói con số đang trả lời câu hỏi nào. Khi\nhợp đồng khai nó là chuỗi tự do thì **không CI nào bắt được một lần đổi tên** — bản chụp\n`contracts/openapi.json` so theo hình dạng, mà hình dạng của một chuỗi tự do không đổi khi\ngiá trị đổi. Frontend chép tay ba literal và sẽ im lặng rơi về nhãn \"mục tiêu chưa rõ\".\n\nEnum này viết tay (tên biến thể sinh ra chuỗi qua `SCREAMING_SNAKE_CASE`), nên được giữ khớp\n`merix_registry::TargetDefinition` bằng hai phép kiểm: độ dài `ALL` gắn với `COUNT` của\nregistry (lệch số lượng là lỗi biên dịch) và test `target_definition_schema_khop_registry`\n(lệch tên là test đỏ).",
+        "enum": [
+          "LOG_RETURN_ABSOLUTE_TOTAL_RETURN",
+          "LOG_RETURN_RELATIVE_TO_MARKET",
+          "LOG_RETURN_RELATIVE_TO_SECTOR"
+        ]
       },
       "TokenPair": {
         "type": "object",

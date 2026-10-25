@@ -35,9 +35,15 @@ export type AbstainReason =
     | 'TARGET_AXIS_MISMATCH';
 
 /**
- * Con so `probabilityUp` tra loi cau hoi nao. Chuoi chinh xac cua backend (`merix_plugins::engines`).
- * Hop dong khai no la `string` tu do, nen day la kieu viet tay; gia tri la khong biet thi
- * `describeHorizon` (target.ts) khong duoc noi "xac suat tang".
+ * Con so `probabilityUp` tra loi cau hoi nao. Chuoi chinh xac cua backend
+ * (`merix_registry::TargetDefinition`, qua `merix_plugins::engines`).
+ *
+ * Hop dong KHAI NO LA MOT ENUM (`components.schemas.TargetDefinition` trong
+ * `contracts/openapi.json`), nen mot lan doi ten o backend lam `npm run check:contract` do va lam
+ * phep doi chieu trong `types.test.ts` do. Truoc day hop dong khai `{"type":"string"}`: hinh dang
+ * cua mot chuoi tu do khong doi khi gia tri doi, nen khong CI nao bat duoc.
+ *
+ * Gia tri la khong biet thi `describeHorizon` (target.ts) khong duoc noi "xac suat tang".
  */
 export type TargetDefinition =
     | 'LOG_RETURN_ABSOLUTE_TOTAL_RETURN'

@@ -20,6 +20,12 @@ import {
     requiresWarning,
     type ValidationStatus,
 } from './types';
+import {
+    TARGET_ABSOLUTE,
+    TARGET_LABELS,
+    TARGET_RELATIVE_MARKET,
+    TARGET_RELATIVE_SECTOR,
+} from './target';
 
 const openapi = JSON.parse(
     readFileSync(fileURLToPath(new URL('../../../contracts/openapi.json', import.meta.url)), 'utf8'),
@@ -109,6 +115,18 @@ describe('doi chieu voi contracts/openapi.json', () => {
         const want = enumValues('AbstainReason').sort();
         const got = Object.keys(ABSTAIN_LABELS).sort();
         expect(got).toEqual(want);
+    });
+
+    it('TargetDefinition khop hop dong', () => {
+        // Truong dau de cua ca he: no noi con so dang tra loi cau hoi nao. Hop dong tung khai no
+        // la chuoi tu do, nen mot lan doi ten o backend khong lam gi do — phep so hinh dang cua
+        // `check:contract` khong thay gi doi, va ba literal duoi day van "hop le" ve kieu.
+        const want = enumValues('TargetDefinition').sort();
+        expect(Object.keys(TARGET_LABELS).sort(), 'TARGET_LABELS lech hop dong').toEqual(want);
+        expect(
+            [TARGET_ABSOLUTE, TARGET_RELATIVE_MARKET, TARGET_RELATIVE_SECTOR].sort(),
+            'hang muc tieu trong target.ts lech hop dong',
+        ).toEqual(want);
     });
 
     it('AssetLevel khop hop dong', () => {

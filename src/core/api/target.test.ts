@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
+    DEFAULT_HORIZON,
     NO_SIGNAL_BAND,
     TARGET_ABSOLUTE,
     TARGET_LABELS,
@@ -133,5 +134,54 @@ describe('khop hop dong sinh tu backend', () => {
         expect(horizon).toBeDefined();
         expect(horizon!.schema.minimum).toBe(1);
         expect(horizon!.schema.maximum).toBe(252);
+    });
+
+    /**
+     * Ky han mac dinh cua giao dien phai la ky han mac dinh cua backend.
+     *
+     * Giao dien tung mac dinh 21 trong khi backend mac dinh 5 va ghi ro do la "uu tien cua chu so
+     * huu". Hai ly le mau thuan cung nam trong ma nguon, va ky han nguoi dung thay dau tien vua la
+     * ky han khong ai hoi vua la ky han tra loi "khong" cho mot phan ba thi truong (996/1518 co
+     * mot con so o h=21, 1188 o h=5).
+     *
+     * `utoipa` khong cho khai `default` cho tham so truy van, nen kenh duy nhat la phan
+     * `description` do backend viet — doc no bang regex, va bat luon ca viec no doi cach viet.
+     */
+    it('ky han mac dinh cua giao dien bang mac dinh cua backend', () => {
+        const ps = openapi.paths['/api/v1/market-snapshot'].get.parameters as {
+            name: string;
+            description?: string;
+        }[];
+        const mo_ta = ps.find((p) => p.name === 'horizon')?.description ?? '';
+        const khop = /default (\d+)/.exec(mo_ta);
+        expect(khop, `hop dong khong con ghi mac dinh cua horizon: "${mo_ta}"`).not.toBeNull();
+        expect(DEFAULT_HORIZON).toBe(Number(khop![1]));
+    });
+
+    it('ky han mac dinh nam trong cac ky han backend that su tinh', () => {
+        expect([1, 5, 21, 63, 252]).toContain(DEFAULT_HORIZON);
+    });
+});
+
+/**
+ * Khong module nao duoc go cung mot ky han du bao.
+ *
+ * `asset.ts` tung goi `renderProbability(initial.forecast, 21)` trong khi `Probability.astro` danh
+ * dau nut `DEFAULT_HORIZON` la dang chon: nhan noi mot ky han, con so noi mot ky han khac. Loi
+ * nay khong the thay bang test don vi vi hai ben o hai file khac loai, nen khoa o muc ma nguon.
+ */
+describe('khong go cung ky han', () => {
+    it('moi lan goi renderProbability deu dung hang, khong dung so', () => {
+        const src = readFileSync(
+            fileURLToPath(new URL('../../modules/workspace/asset.ts', import.meta.url)),
+            'utf8',
+        );
+        const goi = [...src.matchAll(/renderProbability\(([^)]*)\)/g)].map((m) => m[1]);
+        expect(goi.length, 'asset.ts phai co it nhat mot lan render').toBeGreaterThan(0);
+        for (const tham_so of goi) {
+            expect(tham_so, `tham so ky han go cung: renderProbability(${tham_so})`).not.toMatch(
+                /,\s*\d+\s*$/,
+            );
+        }
     });
 });

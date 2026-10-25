@@ -21,12 +21,34 @@ import type { AbstainReason, HorizonForecast, TargetDefinition, ValidationStatus
 import { ABSTAIN_LABELS, VALIDATION_LABELS } from './types';
 import { percent } from './market';
 
+/**
+ * Ba gia tri cua `targetDefinition`.
+ *
+ * Hop dong (`contracts/openapi.json`, sinh tu backend) nay khai chung thanh mot `enum`, nen
+ * `types.test.ts` doi chieu DUNG ba hang nay VA cac khoa cua `TARGET_LABELS` voi enum do. TypeScript
+ * khong suy duoc kieu literal tu mot file JSON nhap vao, nen day van la ba literal viet tay — nhung
+ * chung khong con co the troi ma khong ai thay.
+ */
 export const TARGET_ABSOLUTE: TargetDefinition = 'LOG_RETURN_ABSOLUTE_TOTAL_RETURN';
 export const TARGET_RELATIVE_MARKET: TargetDefinition = 'LOG_RETURN_RELATIVE_TO_MARKET';
 export const TARGET_RELATIVE_SECTOR: TargetDefinition = 'LOG_RETURN_RELATIVE_TO_SECTOR';
 
-/** Ky han (phien) ma man hinh tong quan hien mac dinh. Ghi tuong minh vi backend mac dinh la 5. */
-export const DEFAULT_HORIZON = 21;
+/**
+ * Ky han (phien) ma man hinh tong quan hien mac dinh.
+ *
+ * Bang 5, dung bang `merix_forecast::market_api::DEFAULT_HORIZON` cua backend. Truoc day la 21,
+ * va day la mot mau thuan that chu khong phai chuyen thi hieu:
+ *
+ * - Uu tien chu so huu phat bieu ro la "ngay mai va tuan nay". 21 phien la mot thang giao dich.
+ * - Do phu khac nhau: o h=21 chi 996/1518 co phieu co mot con so; o h=5 la 1188. Ky han hien
+ *   dau tien khong duoc dong thoi la ky han khong ai hoi VA ky han tra loi "khong" cho mot phan
+ *   ba thi truong.
+ *
+ * Doi o day la doi MOI noi: `dashboard.ts`, `Probability.astro`, `asset.ts` va `index.astro` deu
+ * doc hang nay. Con so 21 con lai trong ma nguon la do DAI BIEU DO (`PriceChart.astro`) va nhan
+ * ky han (`types.ts`) — hai thu khac, khong phai mac dinh cua man hinh.
+ */
+export const DEFAULT_HORIZON = 5;
 
 /**
  * TAM THOI — nua be rong cua dai "khong co tin hieu" quanh 50%.

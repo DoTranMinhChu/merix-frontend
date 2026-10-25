@@ -1,6 +1,7 @@
 ﻿import type { ForecastResponse } from "@core/api/types";
 import { readWatchlist, type MarketSeries } from "@core/api/market";
 import { getData, renderChart, renderProbability, toast } from "./charts";
+import { DEFAULT_HORIZON } from "@core/api/target";
 const root = document.querySelector<HTMLElement>("#asset-workspace");
 if (root) {
   const initial = JSON.parse(root.dataset.initial!) as {
@@ -10,7 +11,9 @@ if (root) {
   };
   let controller: AbortController | undefined;
   renderChart(initial.series);
-  renderProbability(initial.forecast, 21);
+  // Phai la DEFAULT_HORIZON, khong phai mot so viet tay: `Probability.astro` danh dau nut
+  // `DEFAULT_HORIZON` la dang chon, nen mot hang khac o day lam nhan va con so noi hai ky han.
+  renderProbability(initial.forecast, DEFAULT_HORIZON);
   root.querySelectorAll<HTMLButtonElement>("[data-horizon]").forEach((button) =>
     button.addEventListener("click", () => {
       root.querySelectorAll("[data-horizon]").forEach((b) => {
