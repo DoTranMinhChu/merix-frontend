@@ -70,11 +70,11 @@ Bản đã lấy về nằm ở `contracts/openapi.json` và **được commit**
 không cần dựng backend (Rust + Postgres).
 
 ```bash
-npm run gen:contract     # lấy /openapi.json từ backend đang chạy, ghi contracts/openapi.json
-npm run check:contract   # không ghi; mã thoát 1 nếu bản đã commit lệch backend đang chạy
+npm run gen:contract     # sinh từ CODE NGUỒN backend (example print_openapi, không cần server)
+npm run check:contract   # không ghi; mã thoát 1 nếu bản đã commit lệch code nguồn
 ```
 
-Backend mặc định ở `http://localhost:8080`; đổi bằng biến `BACKEND_URL`. Quy trình khi backend đổi
+Backend lấy ở `../merix-backend` (đổi bằng `BACKEND_DIR`); cần có `cargo`. Muốn lấy từ server đang chạy thì thêm `-- --from-server` (dùng `BACKEND_URL`, mặc định `http://localhost:8080`) — chỉ khi chắc server build từ code mới. Phía backend có test `ban_chup_hop_dong_frontend_khop_code_nguon` (main-service/tests/openapi_contract.rs) so bản chụp này với code nguồn theo giá trị; đặt `REQUIRE_FRONTEND_CONTRACT=1` để thiếu file là lỗi. Quy trình khi backend đổi
 API: chạy backend, `npm run gen:contract`, xem diff, sửa kiểu trong `core/api/*.ts` cho khớp, chạy
 `npm test`, commit cả file JSON lẫn kiểu. `check:contract` là phép kiểm lệch thật, chạy tay hoặc
 trong môi trường có backend — không nằm trong CI mặc định.

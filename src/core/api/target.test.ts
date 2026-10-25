@@ -127,8 +127,11 @@ describe('khop hop dong sinh tu backend', () => {
         expect(snap.length).toBeGreaterThanOrEqual(2);
         for (const [, v] of snap) expect(v.required).toContain('targetDefinition');
     });
-    it('market-snapshot nhan tham so horizon', () => {
-        const params = openapi.paths['/api/v1/market-snapshot'].get.parameters.map((p: { name: string }) => p.name);
-        expect(params).toContain('horizon');
+    it('market-snapshot nhan tham so horizon, khai dung khoang 1..252', () => {
+        const ps = openapi.paths['/api/v1/market-snapshot'].get.parameters as { name: string; schema: { minimum?: number; maximum?: number } }[];
+        const horizon = ps.find((p) => p.name === 'horizon');
+        expect(horizon).toBeDefined();
+        expect(horizon!.schema.minimum).toBe(1);
+        expect(horizon!.schema.maximum).toBe(252);
     });
 });

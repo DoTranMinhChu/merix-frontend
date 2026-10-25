@@ -148,13 +148,21 @@ describe('compactProbabilityHtml (hang, the, o nganh)', () => {
             abstainReason: null,
             ...o,
         }) as never;
-    it('null va tu choi la dau gach, khong phai 0% hay 50%', () => {
-        expect(text(compactProbabilityHtml(null))).toContain('—');
-        const t = text(
-            compactProbabilityHtml(snap({ predictionStatus: 'ABSTAINED', probabilityUp: null, abstainReason: 'LOW_COVERAGE' })),
+    it('khong co dong tuyet doi va bi tu choi la HAI trang thai doc phan biet duoc bang chu', () => {
+        const none = compactProbabilityHtml(null);
+        const refused = compactProbabilityHtml(
+            snap({ predictionStatus: 'ABSTAINED', probabilityUp: null, abstainReason: 'LOW_COVERAGE' }),
         );
-        expect(t).toContain('—');
-        expect(t).not.toMatch(/0%|50/);
+        expect(text(none)).toMatch(/Chưa có dự báo/);
+        expect(text(refused)).toMatch(/Không phát dự báo/);
+        expect(text(refused)).toMatch(/Dữ liệu không đủ đầy đủ/);
+        expect(refused).toContain('title="Dữ liệu không đủ đầy đủ"');
+        expect(text(none)).not.toBe(text(refused));
+        for (const t of [text(none), text(refused)]) expect(t).not.toMatch(/0%|50/);
+    });
+    it('tu choi khong ro ly do van noi la khong ro ly do', () => {
+        const t = text(compactProbabilityHtml(snap({ predictionStatus: 'ABSTAINED', probabilityUp: null })));
+        expect(t).toMatch(/Không rõ lý do/);
     });
     it('chua co co so va khong co tin hieu mang nhan rieng', () => {
         expect(text(compactProbabilityHtml(snap({ validationStatus: 'NOT_VALIDATED', probabilityUp: 0.58 })))).toMatch(/Chưa có cơ sở/);

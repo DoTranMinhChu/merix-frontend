@@ -91,14 +91,18 @@ export function probabilityBodyHtml(
  * doi; neu backend tra muc tieu khac thi KHONG hien con so — thà trong con hon sai nhan.
  */
 export function compactProbabilityHtml(f: SnapshotForecast | null): string {
-    if (!f) return '<strong class="table-probability">—</strong>';
+    // Hai trang thai ma backend giu rieng: khong co dong tuyet doi (null) khac voi dong bi tu choi.
+    // Khac nhau bang CHU (mau khong phai su khac biet ma nguoi doc goi ten duoc).
+    if (!f) {
+        return '<span class="state-label state-none" title="Chưa có dòng dự báo tuyệt đối cho tài sản này">Chưa có dự báo</span>';
+    }
     if (f.targetDefinition !== TARGET_ABSOLUTE) {
         return '<span class="state-label state-refused">Không rõ mục tiêu</span>';
     }
     const v = describeHorizon(f);
     switch (v.state.kind) {
         case 'refused':
-            return '<strong class="table-probability state-refused">—</strong>';
+            return `<span class="state-label state-refused" title="${e(v.stateNote)}">${e(v.stateLabel)}</span><small class="state-number">${e(v.stateNote)}</small>`;
         case 'signal':
             return `<strong class="table-probability${f.probabilityUp! < 0.5 ? ' negative' : ''}">${e(v.valueText ?? '—')}</strong>`;
         default:

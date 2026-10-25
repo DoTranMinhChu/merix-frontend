@@ -3104,3 +3104,48 @@ small.state-number {
 .state-block.state-no-signal > strong {
   color: var(--muted);
 }
+
+/* Giao diện sáng cho huy hiệu mục tiêu và ba trạng thái: màu tối hơn để đủ tương phản trên nền sáng. */
+.light .target-badge.target-absolute {
+  background: #e3f3ee;
+  border-color: #205f4d;
+  color: #205f4d;
+}
+.light .target-badge.target-market {
+  border-color: #78632b;
+  color: #78632b;
+}
+.light .target-badge.target-sector {
+  border-color: #2f5f8f;
+  color: #2f5f8f;
+}
+.light .target-badge.target-unknown {
+  border-color: #536579;
+  color: #536579;
+}
+.light .relative-block {
+  border-top-color: var(--line);
+}
+.light .state-label.state-refused,
+.light .state-refused {
+  color: #a54055;
+}
+.light .state-label.state-no-basis,
+.light .state-block.state-no-basis > strong {
+  color: #78632b;
+}
+.light .state-label.state-no-signal,
+.light .state-label.state-none,
+.light .state-block.state-no-signal > strong {
+  color: #536579;
+}
+.light .state-block.state-no-basis {
+  border-color: #78632b;
+}
+.light .state-number {
+  color: #536579;
+  opacity: 1;
+}
+.state-label.state-none {
+  color: var(--muted);
+}

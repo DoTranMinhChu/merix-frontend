@@ -1,29 +1,66 @@
-// Lấy hợp đồng API từ backend đang chạy (`/openapi.json`, sinh từ code bằng utoipa) rồi ghi vào
-// `contracts/openapi.json`. Đây là nguồn hợp đồng DUY NHẤT — không còn file YAML viết tay.
+// Sinh `contracts/openapi.json` — nguồn hợp đồng DUY NHẤT (utoipa sinh từ code backend).
 //
-//   npm run gen:contract     ghi đè contracts/openapi.json bằng bản đang chạy ở backend
-//   npm run check:contract   không ghi; thoát mã 1 nếu bản đã commit lệch backend đang chạy
+//   npm run gen:contract     ghi đè contracts/openapi.json
+//   npm run check:contract   không ghi; thoát mã 1 nếu bản đã commit lệch nguồn
 //
-// Biến môi trường: BACKEND_URL (mặc định http://localhost:8080).
+// Mặc định sinh THẲNG TỪ CODE NGUỒN backend, không cần server: chạy example
+// `print_openapi` của main-service (`cargo run -p merix-main-service --example print_openapi`).
+// Lý do: một backend đang chạy có thể build từ code cũ, nên bản chụp lấy từ nó có thể lệch code
+// mà không ai thấy.
+//
+// Biến môi trường:
+//   BACKEND_DIR    thư mục repo backend (mặc định ../merix-backend, anh em với repo này)
+//   CARGO_TARGET_DIR  chuyển tiếp cho cargo (dùng khi dịch vụ đang chạy giữ target mặc định)
+//   --from-server  lấy `/openapi.json` từ server đang chạy ở BACKEND_URL (mặc định
+//                  http://localhost:8080) thay vì dựng từ code — chỉ khi chắc server mới.
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const base = (process.env.BACKEND_URL ?? 'http://localhost:8080').replace(/\/+$/, '');
-const out = join(dirname(fileURLToPath(import.meta.url)), '../contracts/openapi.json');
+const here = dirname(fileURLToPath(import.meta.url));
+const out = join(here, '../contracts/openapi.json');
 const kiemTra = process.argv.includes('--check');
+const tuServer = process.argv.includes('--from-server');
 
 let doc;
-try {
-    const res = await fetch(`${base}/openapi.json`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    doc = await res.json();
-} catch (e) {
-    console.error(`Không lấy được ${base}/openapi.json (${e.message}). Backend đã chạy chưa?`);
-    process.exit(2);
+let nguon;
+if (tuServer) {
+    const base = (process.env.BACKEND_URL ?? 'http://localhost:8080').replace(/\/+$/, '');
+    nguon = `${base}/openapi.json`;
+    try {
+        const res = await fetch(nguon);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        doc = await res.json();
+    } catch (e) {
+        console.error(`Không lấy được ${nguon} (${e.message}). Backend đã chạy chưa?`);
+        process.exit(2);
+    }
+} else {
+    const dir = resolve(process.env.BACKEND_DIR ?? join(here, '../../merix-backend'));
+    nguon = `code nguồn ${dir}`;
+    if (!existsSync(join(dir, 'Cargo.toml'))) {
+        console.error(`Không thấy backend ở ${dir}. Đặt BACKEND_DIR, hoặc dùng --from-server.`);
+        process.exit(2);
+    }
+    const r = spawnSync(
+        'cargo',
+        ['run', '-q', '-p', 'merix-main-service', '--example', 'print_openapi'],
+        { cwd: dir, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 },
+    );
+    if (r.status !== 0) {
+        console.error(`cargo thất bại (mã ${r.status}):\n${r.stderr ?? r.error}`);
+        process.exit(2);
+    }
+    try {
+        doc = JSON.parse(r.stdout);
+    } catch (e) {
+        console.error(`Đầu ra của example print_openapi không phải JSON: ${e.message}`);
+        process.exit(2);
+    }
 }
 if (!doc?.paths || !doc?.components?.schemas) {
-    console.error(`${base}/openapi.json không phải một tài liệu OpenAPI hợp lệ.`);
+    console.error(`${nguon} không cho ra một tài liệu OpenAPI hợp lệ.`);
     process.exit(2);
 }
 
@@ -35,12 +72,12 @@ const nSchemas = Object.keys(doc.components.schemas).length;
 if (kiemTra) {
     const cu = existsSync(out) ? readFileSync(out, 'utf8').replace(/\r\n/g, '\n') : '';
     if (cu !== text) {
-        console.error(`contracts/openapi.json LỆCH backend (${base}). Chạy \`npm run gen:contract\`, xem diff rồi commit.`);
+        console.error(`contracts/openapi.json LỆCH ${nguon}. Chạy \`npm run gen:contract\`, xem diff rồi commit.`);
         process.exit(1);
     }
-    console.log(`contracts/openapi.json khớp backend: ${nPaths} path, ${nSchemas} schema.`);
+    console.log(`contracts/openapi.json khớp ${nguon}: ${nPaths} path, ${nSchemas} schema.`);
 } else {
     mkdirSync(dirname(out), { recursive: true });
     writeFileSync(out, text);
-    console.log(`Đã ghi contracts/openapi.json từ ${base}: ${nPaths} path, ${nSchemas} schema.`);
+    console.log(`Đã ghi contracts/openapi.json từ ${nguon}: ${nPaths} path, ${nSchemas} schema.`);
 }

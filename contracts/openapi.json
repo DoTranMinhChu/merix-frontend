@@ -1924,7 +1924,9 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "maximum": 252,
+              "minimum": 1
             }
           },
           {
