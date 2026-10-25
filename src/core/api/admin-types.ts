@@ -137,8 +137,8 @@ export function jobCanhBao(j: JobRun): string | null {
 /**
  * Loai job co the xep tay tu trang admin.
  *
- * Danh sach nay **duoc test doi chieu voi `contracts/openapi.yaml`** (ban sao cua `shared/contracts/openapi.yaml` o merix-backend), giong test o
- * `merix-ops::interface`. Chep tay giua ba noi thi hai ben lech nhau ma test van xanh, va trang
+ * Danh sach nay **duoc test doi chieu voi `contracts/openapi.json`** (hop dong sinh tu backend, schema `JobType`).
+ * Backend co test tuong ung doi chieu `JobType` voi danh sach handler. Chep tay giua nhieu noi thi hai ben lech nhau ma test van xanh, va trang
  * admin se gui mot loai job ma backend tu choi.
  */
 export const JOB_TYPES = [

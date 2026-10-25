@@ -1,0 +1,4210 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MERIX API",
+    "description": "Nền tảng dự báo **xác suất** tăng / không tăng cho thị trường, ngành và cổ phiếu Việt Nam.\n\n## Ràng buộc không thương lượng\n\n1. Đầu ra chỉ gồm `probabilityUp` và `probabilityNotUp`. Không có khuyến nghị mua/bán.\n2. `probabilityNotUp` là **phần bù**, gồm cả giá đi ngang — không đồng nhất với \"giảm\".\n3. Thiếu dữ liệu thì `predictionStatus` là `UNAVAILABLE` kèm lý do. Không bao giờ trả `0.5` thay cho \"không biết\".\n4. Mọi phản hồi dự báo mang `validationStatus`. Hiện chưa có mô hình nào được kiểm chứng cho kỳ hạn ngày ở Việt Nam, nên `NOT_VALIDATED` / `BASELINE_ONLY` là trạng thái bình thường.\n\n## Quy ước\n\nKhoá JSON và query param dùng **camelCase**; giá trị enum dùng **SCREAMING_SNAKE**; đường dẫn dùng **kebab-case**.\n\nTài liệu này được **sinh từ chính định nghĩa entity** — danh sách cột lọc/sort được trong mỗi endpoint lấy thẳng từ whitelist đang có hiệu lực, không phải chép tay.",
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Phát triển local"
+    }
+  ],
+  "paths": {
+    "/api/v1/admin/alerts": {
+      "get": {
+        "tags": [
+          "alert"
+        ],
+        "summary": "Danh sách alert",
+        "description": "Phân trang cursor hoặc offset. Dùng `after`/`before` cho cursor, `page` cho offset. Cursor mang theo trường sort đã sinh ra nó, nên đổi `sort` giữa hai trang sẽ bị từ chối thay vì trả kết quả sai lệch âm thầm.",
+        "operationId": "listAlert",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Trang, dùng với chế độ offset. Bắt đầu từ 1.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Số bản ghi mỗi trang. Tối đa 200.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Cursor để lấy trang kế tiếp.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Cursor để lấy trang trước đó.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Sắp xếp: `field` hoặc `field:asc` / `field:desc`. Cột cho phép: `severity`, `code`, `message`, `assetId`, `jobRunId`, `createdAt`, `acknowledgedAt`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "Lọc, dạng `field:op:value`. Lặp lại được để AND nhiều điều kiện. Toán tử: eq, ne, gt, gte, lt, lte, in, notIn, like, iLike, startsWith, endsWith, between, isNull, notNull. Cột cho phép: `severity`, `code`, `message`, `assetId`, `jobRunId`, `createdAt`, `acknowledgedAt`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Tìm kiếm chuỗi, không phân biệt hoa thường.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "searchFields",
+            "in": "query",
+            "description": "Giới hạn cột tìm kiếm. Cho phép: `code`, `message`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Tham số lọc hoặc sort không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa xác thực",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cần vai trò: admin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/alerts/acknowledge": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "`POST /api/v1/admin/alerts/acknowledge`",
+        "operationId": "acknowledge",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcknowledgeInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "So dong da xac nhan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcknowledgeResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Khong co tieu chi chon"
+          },
+          "401": {
+            "description": "Thieu hoac sai token"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/alerts/{id}": {
+      "get": {
+        "tags": [
+          "alert"
+        ],
+        "summary": "Lấy một Alert",
+        "operationId": "getAlert",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Khoá chính của bản ghi.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bản ghi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Alert"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id sai định dạng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy, hoặc nằm ngoài phạm vi truy cập",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/data-sources": {
+      "get": {
+        "tags": [
+          "data_source"
+        ],
+        "summary": "Danh sách data_source",
+        "description": "Phân trang cursor hoặc offset. Dùng `after`/`before` cho cursor, `page` cho offset. Cursor mang theo trường sort đã sinh ra nó, nên đổi `sort` giữa hai trang sẽ bị từ chối thay vì trả kết quả sai lệch âm thầm.",
+        "operationId": "listDataSource",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Trang, dùng với chế độ offset. Bắt đầu từ 1.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Số bản ghi mỗi trang. Tối đa 200.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Cursor để lấy trang kế tiếp.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Cursor để lấy trang trước đó.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Sắp xếp: `field` hoặc `field:asc` / `field:desc`. Cột cho phép: `code`, `displayName`, `priority`, `enabled`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "Lọc, dạng `field:op:value`. Lặp lại được để AND nhiều điều kiện. Toán tử: eq, ne, gt, gte, lt, lte, in, notIn, like, iLike, startsWith, endsWith, between, isNull, notNull. Cột cho phép: `code`, `displayName`, `priority`, `enabled`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Tìm kiếm chuỗi, không phân biệt hoa thường.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "searchFields",
+            "in": "query",
+            "description": "Giới hạn cột tìm kiếm. Cho phép: `code`, `displayName`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataSourcePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Tham số lọc hoặc sort không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "data_source"
+        ],
+        "summary": "Tạo DataSource",
+        "operationId": "createDataSource",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDataSourceInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Đã tạo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataSource"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa xác thực",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cần vai trò: admin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/data-sources/{id}": {
+      "get": {
+        "tags": [
+          "data_source"
+        ],
+        "summary": "Lấy một DataSource",
+        "operationId": "getDataSource",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Khoá chính của bản ghi.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bản ghi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataSource"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id sai định dạng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy, hoặc nằm ngoài phạm vi truy cập",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "data_source"
+        ],
+        "summary": "Cập nhật DataSource",
+        "description": "Partial update: chỉ field có mặt trong payload mới bị thay đổi. Field lạ bị từ chối thay vì bỏ qua âm thầm.",
+        "operationId": "updateDataSource",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Khoá chính của bản ghi.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDataSourceInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Đã cập nhật",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataSource"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa xác thực",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cần vai trò: admin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Payload chứa field không được phép sửa",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/forecasts": {
+      "get": {
+        "tags": [
+          "forecast"
+        ],
+        "summary": "Danh sách forecast",
+        "description": "Phân trang cursor hoặc offset. Dùng `after`/`before` cho cursor, `page` cho offset. Cursor mang theo trường sort đã sinh ra nó, nên đổi `sort` giữa hai trang sẽ bị từ chối thay vì trả kết quả sai lệch âm thầm.",
+        "operationId": "listForecast",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Trang, dùng với chế độ offset. Bắt đầu từ 1.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Số bản ghi mỗi trang. Tối đa 200.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Cursor để lấy trang kế tiếp.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Cursor để lấy trang trước đó.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Sắp xếp: `field` hoặc `field:asc` / `field:desc`. Cột cho phép: `assetId`, `horizonSessions`, `asofAt`, `dataThrough`, `predictionStatus`, `modelVersionId`, `validationStatus`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "Lọc, dạng `field:op:value`. Lặp lại được để AND nhiều điều kiện. Toán tử: eq, ne, gt, gte, lt, lte, in, notIn, like, iLike, startsWith, endsWith, between, isNull, notNull. Cột cho phép: `assetId`, `horizonSessions`, `asofAt`, `dataThrough`, `predictionStatus`, `modelVersionId`, `validationStatus`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForecastPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Tham số lọc hoặc sort không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/forecasts/{id}": {
+      "get": {
+        "tags": [
+          "forecast"
+        ],
+        "summary": "Lấy một Forecast",
+        "operationId": "getForecast",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Khoá chính của bản ghi.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bản ghi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Forecast"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id sai định dạng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy, hoặc nằm ngoài phạm vi truy cập",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/job-runs": {
+      "get": {
+        "tags": [
+          "job_run"
+        ],
+        "summary": "Danh sách job_run",
+        "description": "Phân trang cursor hoặc offset. Dùng `after`/`before` cho cursor, `page` cho offset. Cursor mang theo trường sort đã sinh ra nó, nên đổi `sort` giữa hai trang sẽ bị từ chối thay vì trả kết quả sai lệch âm thầm.",
+        "operationId": "listJobRun",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Trang, dùng với chế độ offset. Bắt đầu từ 1.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Số bản ghi mỗi trang. Tối đa 200.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Cursor để lấy trang kế tiếp.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Cursor để lấy trang trước đó.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Sắp xếp: `field` hoặc `field:asc` / `field:desc`. Cột cho phép: `jobType`, `status`, `requestedAt`, `idempotencyKey`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "Lọc, dạng `field:op:value`. Lặp lại được để AND nhiều điều kiện. Toán tử: eq, ne, gt, gte, lt, lte, in, notIn, like, iLike, startsWith, endsWith, between, isNull, notNull. Cột cho phép: `jobType`, `status`, `requestedAt`, `idempotencyKey`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Tìm kiếm chuỗi, không phân biệt hoa thường.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "searchFields",
+            "in": "query",
+            "description": "Giới hạn cột tìm kiếm. Cho phép: `jobType`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRunPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Tham số lọc hoặc sort không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa xác thực",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cần vai trò: admin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "`POST /api/v1/admin/job-runs`",
+        "operationId": "enqueue",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnqueueJobInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Da xep job, hoac job da ton tai",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnqueueJobResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "job_type khong co handler"
+          },
+          "401": {
+            "description": "Thieu hoac sai token"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/job-runs/{id}": {
+      "get": {
+        "tags": [
+          "job_run"
+        ],
+        "summary": "Lấy một JobRun",
+        "operationId": "getJobRun",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Khoá chính của bản ghi.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bản ghi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRun"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id sai định dạng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy, hoặc nằm ngoài phạm vi truy cập",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users": {
+      "get": {
+        "tags": [
+          "admin_user"
+        ],
+        "summary": "Danh sách admin_user",
+        "description": "Phân trang cursor hoặc offset. Dùng `after`/`before` cho cursor, `page` cho offset. Cursor mang theo trường sort đã sinh ra nó, nên đổi `sort` giữa hai trang sẽ bị từ chối thay vì trả kết quả sai lệch âm thầm.",
+        "operationId": "listAdminUser",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Trang, dùng với chế độ offset. Bắt đầu từ 1.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Số bản ghi mỗi trang. Tối đa 200.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Cursor để lấy trang kế tiếp.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Cursor để lấy trang trước đó.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Sắp xếp: `field` hoặc `field:asc` / `field:desc`. Cột cho phép: `email`, `displayName`, `isActive`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "Lọc, dạng `field:op:value`. Lặp lại được để AND nhiều điều kiện. Toán tử: eq, ne, gt, gte, lt, lte, in, notIn, like, iLike, startsWith, endsWith, between, isNull, notNull. Cột cho phép: `email`, `displayName`, `isActive`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Tìm kiếm chuỗi, không phân biệt hoa thường.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "searchFields",
+            "in": "query",
+            "description": "Giới hạn cột tìm kiếm. Cho phép: `email`, `displayName`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Tham số lọc hoặc sort không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa xác thực",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cần vai trò: admin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/users/{id}": {
+      "get": {
+        "tags": [
+          "admin_user"
+        ],
+        "summary": "Lấy một AdminUser",
+        "operationId": "getAdminUser",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Khoá chính của bản ghi.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bản ghi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUser"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id sai định dạng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy, hoặc nằm ngoài phạm vi truy cập",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "admin_user"
+        ],
+        "summary": "Xoá mềm admin_user",
+        "operationId": "deleteAdminUser",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Khoá chính của bản ghi.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Đã xoá"
+          },
+          "401": {
+            "description": "Chưa xác thực",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cần vai trò: admin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "admin_user"
+        ],
+        "summary": "Cập nhật AdminUser",
+        "description": "Partial update: chỉ field có mặt trong payload mới bị thay đổi. Field lạ bị từ chối thay vì bỏ qua âm thầm.",
+        "operationId": "updateAdminUser",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Khoá chính của bản ghi.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAdminUserInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Đã cập nhật",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUser"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa xác thực",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cần vai trò: admin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Payload chứa field không được phép sửa",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/validation-runs": {
+      "get": {
+        "tags": [
+          "validation_run"
+        ],
+        "summary": "Danh sách validation_run",
+        "description": "Phân trang cursor hoặc offset. Dùng `after`/`before` cho cursor, `page` cho offset. Cursor mang theo trường sort đã sinh ra nó, nên đổi `sort` giữa hai trang sẽ bị từ chối thay vì trả kết quả sai lệch âm thầm.",
+        "operationId": "listValidationRun",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Trang, dùng với chế độ offset. Bắt đầu từ 1.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Số bản ghi mỗi trang. Tối đa 200.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Cursor để lấy trang kế tiếp.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Cursor để lấy trang trước đó.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Sắp xếp: `field` hoặc `field:asc` / `field:desc`. Cột cho phép: `modelVersionId`, `jobRunId`, `nForecasts`, `createdAt`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "Lọc, dạng `field:op:value`. Lặp lại được để AND nhiều điều kiện. Toán tử: eq, ne, gt, gte, lt, lte, in, notIn, like, iLike, startsWith, endsWith, between, isNull, notNull. Cột cho phép: `modelVersionId`, `jobRunId`, `nForecasts`, `createdAt`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationRunPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Tham số lọc hoặc sort không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa xác thực",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cần vai trò: admin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/validation-runs/{id}": {
+      "get": {
+        "tags": [
+          "validation_run"
+        ],
+        "summary": "Lấy một ValidationRun",
+        "operationId": "getValidationRun",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Khoá chính của bản ghi.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bản ghi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationRun"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id sai định dạng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy, hoặc nằm ngoài phạm vi truy cập",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assets": {
+      "get": {
+        "tags": [
+          "asset"
+        ],
+        "summary": "Danh sách asset",
+        "description": "Phân trang cursor hoặc offset. Dùng `after`/`before` cho cursor, `page` cho offset. Cursor mang theo trường sort đã sinh ra nó, nên đổi `sort` giữa hai trang sẽ bị từ chối thay vì trả kết quả sai lệch âm thầm.",
+        "operationId": "listAsset",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Trang, dùng với chế độ offset. Bắt đầu từ 1.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Số bản ghi mỗi trang. Tối đa 200.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Cursor để lấy trang kế tiếp.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Cursor để lấy trang trước đó.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Sắp xếp: `field` hoặc `field:asc` / `field:desc`. Cột cho phép: `assetClass`, `assetLevel`, `symbol`, `exchange`, `name`, `icbCode`, `status`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "Lọc, dạng `field:op:value`. Lặp lại được để AND nhiều điều kiện. Toán tử: eq, ne, gt, gte, lt, lte, in, notIn, like, iLike, startsWith, endsWith, between, isNull, notNull. Cột cho phép: `assetClass`, `assetLevel`, `symbol`, `exchange`, `name`, `icbCode`, `status`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Tìm kiếm chuỗi, không phân biệt hoa thường.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "searchFields",
+            "in": "query",
+            "description": "Giới hạn cột tìm kiếm. Cho phép: `symbol`, `name`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Tham số lọc hoặc sort không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assets/{id}": {
+      "get": {
+        "tags": [
+          "asset"
+        ],
+        "summary": "Lấy một Asset",
+        "operationId": "getAsset",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Khoá chính của bản ghi.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bản ghi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id sai định dạng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy, hoặc nằm ngoài phạm vi truy cập",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "asset"
+        ],
+        "summary": "Cập nhật Asset",
+        "description": "Partial update: chỉ field có mặt trong payload mới bị thay đổi. Field lạ bị từ chối thay vì bỏ qua âm thầm.",
+        "operationId": "updateAsset",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Khoá chính của bản ghi.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAssetInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Đã cập nhật",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa xác thực",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cần vai trò: admin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Payload chứa field không được phép sửa",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "`POST /api/v1/auth/login`",
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Cap token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Email hoac mat khau khong dung. MOT ma cho moi nhanh that bai: noi ro nhanh nao la xac nhan email do co ton tai."
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "`POST /api/v1/auth/logout`",
+        "operationId": "logout",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Da thu hoi. Tra 204 ke ca khi token khong ton tai: noi \"token nay khong co\" la xac nhan token khac thi co."
+          },
+          "400": {
+            "description": "Body khong parse duoc hoac thieu `refreshToken`. Day la nhanh 4xx duy nhat: token sai van tra 204, co y."
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "`POST /api/v1/auth/refresh`",
+        "operationId": "refresh",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Cap token moi; token cu bi thu hoi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Refresh token khong hop le hoac da dung"
+          }
+        }
+      }
+    },
+    "/api/v1/data-status": {
+      "get": {
+        "tags": [
+          "public"
+        ],
+        "summary": "`GET /api/v1/data-status`",
+        "operationId": "data_status",
+        "responses": {
+          "200": {
+            "description": "Tinh trang du lieu",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/forecasts": {
+      "get": {
+        "tags": [
+          "public"
+        ],
+        "summary": "`GET /api/v1/forecasts`",
+        "operationId": "forecasts",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "query",
+            "description": "Mã cần xem, mặc định VNINDEX",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetLevel",
+            "in": "query",
+            "description": "MARKET | SECTOR | STOCK",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "family",
+            "in": "query",
+            "description": "Họ mô hình, mặc định equal_ensemble",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dự báo mới nhất của một tài sản",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForecastResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không có mã đó, hoặc chưa có dự báo nào"
+          }
+        }
+      }
+    },
+    "/api/v1/market-series": {
+      "get": {
+        "tags": [
+          "public"
+        ],
+        "operationId": "series",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "query",
+            "description": "Asset symbol",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "2–252 sessions, default 63",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketSeries"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query"
+          },
+          "404": {
+            "description": "Unknown asset"
+          }
+        }
+      }
+    },
+    "/api/v1/market-snapshot": {
+      "get": {
+        "tags": [
+          "public"
+        ],
+        "operationId": "snapshot",
+        "parameters": [
+          {
+            "name": "level",
+            "in": "query",
+            "description": "STOCK (default), MARKET, SECTOR",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Symbol or name, literal substring",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sector",
+            "in": "query",
+            "description": "Exact ICB code",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "symbols",
+            "in": "query",
+            "description": "Comma-separated watchlist, max 100 symbols",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Exclusive asset ID cursor; reset when filters change",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–100; default 24",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid filter"
+          }
+        }
+      }
+    },
+    "/api/v1/model-versions": {
+      "get": {
+        "tags": [
+          "model_version"
+        ],
+        "summary": "Danh sách model_version",
+        "description": "Phân trang cursor hoặc offset. Dùng `after`/`before` cho cursor, `page` cho offset. Cursor mang theo trường sort đã sinh ra nó, nên đổi `sort` giữa hai trang sẽ bị từ chối thay vì trả kết quả sai lệch âm thầm.",
+        "operationId": "listModelVersion",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Trang, dùng với chế độ offset. Bắt đầu từ 1.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Số bản ghi mỗi trang. Tối đa 200.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Cursor để lấy trang kế tiếp.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Cursor để lấy trang trước đó.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Sắp xếp: `field` hoặc `field:asc` / `field:desc`. Cột cho phép: `code`, `family`, `assetLevel`, `horizonSessions`, `featureSetVersion`, `status`, `validationStatus`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "Lọc, dạng `field:op:value`. Lặp lại được để AND nhiều điều kiện. Toán tử: eq, ne, gt, gte, lt, lte, in, notIn, like, iLike, startsWith, endsWith, between, isNull, notNull. Cột cho phép: `code`, `family`, `assetLevel`, `horizonSessions`, `featureSetVersion`, `status`, `validationStatus`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Tìm kiếm chuỗi, không phân biệt hoa thường.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "searchFields",
+            "in": "query",
+            "description": "Giới hạn cột tìm kiếm. Cho phép: `code`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelVersionPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Tham số lọc hoặc sort không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/model-versions/{id}": {
+      "get": {
+        "tags": [
+          "model_version"
+        ],
+        "summary": "Lấy một ModelVersion",
+        "operationId": "getModelVersion",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Khoá chính của bản ghi.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bản ghi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelVersion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id sai định dạng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy, hoặc nằm ngoài phạm vi truy cập",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "model_version"
+        ],
+        "summary": "Cập nhật ModelVersion",
+        "description": "Partial update: chỉ field có mặt trong payload mới bị thay đổi. Field lạ bị từ chối thay vì bỏ qua âm thầm.",
+        "operationId": "updateModelVersion",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Khoá chính của bản ghi.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateModelVersionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Đã cập nhật",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelVersion"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa xác thực",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cần vai trò: admin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Payload chứa field không được phép sửa",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "ha-tang"
+        ],
+        "summary": "`GET /health`",
+        "operationId": "liveness",
+        "responses": {
+          "200": {
+            "description": "Tien trinh song. KHONG cham DB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LivenessBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "tags": [
+          "ha-tang"
+        ],
+        "summary": "`GET /health/ready`",
+        "operationId": "readiness",
+        "responses": {
+          "200": {
+            "description": "San sang phuc vu; co cham DB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "DB khong voi toi duoc",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AbstainReason": {
+        "type": "string",
+        "description": "Lý do một dự báo không được phát ra — giá trị của `abstainReason`.\n\nĐây là bản **mô tả cho hợp đồng**: giá trị thật đi từ cột `forecast.abstain_reason` (chuỗi),\nnên trường trong phản hồi vẫn là `String` ở phía Rust. Enum này tồn tại để `/openapi.json`\nkhai danh sách giá trị hợp lệ; test ở cuối file buộc nó khớp `merix_registry::AbstainReason`.",
+        "enum": [
+          "INSUFFICIENT_HISTORY",
+          "LOW_COVERAGE",
+          "INSUFFICIENT_TRAINING_DATA",
+          "PENDING_CORPORATE_ACTION",
+          "CALIBRATION_DEGRADED",
+          "TARGET_SESSION_UNKNOWN"
+        ]
+      },
+      "AcknowledgeInput": {
+        "type": "object",
+        "description": "Chọn cảnh báo để xác nhận.\n\n# Vì sao không chỉ nhận một `alert_id`\n\nĐo trên dữ liệu thật: 137 cảnh báo `WARNING` chưa xử lý, phần lớn là `PRICE_EMPTY` và\n`PRICE_WARNING` sinh từ **một** lần chạy ingest. Bắt người vận hành bấm 137 lần nghĩa là họ\nsẽ không bấm lần nào — và một danh sách không ai xoá được là một danh sách không ai đọc.\n\nNên có hai cách chọn: danh sách id tường minh, hoặc theo `code` (tuỳ chọn thêm `jobRunId`).",
+        "properties": {
+          "alertIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Danh sách id cụ thể."
+          },
+          "code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Xác nhận mọi cảnh báo mang mã này."
+          },
+          "jobRunId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Giới hạn trong một lần chạy job. Chỉ có nghĩa khi đi cùng `code`."
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Ghi chú tuỳ chọn, gắn vào `context` để sau này còn biết vì sao đã xác nhận."
+          }
+        }
+      },
+      "AcknowledgeResult": {
+        "type": "object",
+        "required": [
+          "acknowledged"
+        ],
+        "properties": {
+          "acknowledged": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Số dòng lần gọi này thực sự đổi. Gọi lại cho cùng tập trả `0` — **không phải lỗi**.",
+            "minimum": 0
+          }
+        }
+      },
+      "AdminUser": {
+        "type": "object",
+        "required": [
+          "adminUserId",
+          "email",
+          "displayName",
+          "isActive",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "adminUserId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deletedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AdminUserPage": {
+        "type": "object",
+        "description": "Trang kết quả của AdminUser.",
+        "required": [
+          "edges",
+          "pageInfo"
+        ],
+        "properties": {
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "node",
+                "cursor"
+              ],
+              "properties": {
+                "cursor": {
+                  "type": "string"
+                },
+                "node": {
+                  "$ref": "#/components/schemas/AdminUser"
+                }
+              }
+            }
+          },
+          "pageInfo": {
+            "type": "object",
+            "required": [
+              "hasNextPage",
+              "hasPreviousPage",
+              "totalCount"
+            ],
+            "properties": {
+              "endCursor": {},
+              "hasNextPage": {
+                "type": "boolean"
+              },
+              "hasPreviousPage": {
+                "type": "boolean"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "startCursor": {},
+              "totalCount": {
+                "type": "integer"
+              },
+              "totalPage": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "Alert": {
+        "type": "object",
+        "description": "Cảnh báo do job sinh ra.\n\n# Vì sao `alert` là bảng chứ không phải chỉ là log\n\nLog bị cuộn đi. Một cảnh báo \"35 mã nguồn trả 0 phiên\" cần tồn tại tới khi có người xem,\nvà cần truy được về `job_run_id` đã sinh ra nó.",
+        "required": [
+          "alertId",
+          "severity",
+          "code",
+          "message",
+          "createdAt"
+        ],
+        "properties": {
+          "acknowledgedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "`NULL` = chưa ai xem.\n\n**Phải filterable.** Không có nó, trang admin chỉ lấy được N dòng mới nhất rồi tự lọc\nphía client — và đo được trên dữ liệu thật là nó dối: 20 dòng mới nhất toàn `INFO`,\ntrang báo \"20/20 cảnh báo\", trong khi 137 cảnh báo `WARNING` nằm ngoài cửa sổ đó."
+          },
+          "acknowledgedBy": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Ai đã xác nhận. Lấy từ token trong [`crate::interface::acknowledge`], không từ body."
+          },
+          "alertId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "assetId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "code": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "jobRunId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "message": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          }
+        }
+      },
+      "AlertPage": {
+        "type": "object",
+        "description": "Trang kết quả của Alert.",
+        "required": [
+          "edges",
+          "pageInfo"
+        ],
+        "properties": {
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "node",
+                "cursor"
+              ],
+              "properties": {
+                "cursor": {
+                  "type": "string"
+                },
+                "node": {
+                  "$ref": "#/components/schemas/Alert"
+                }
+              }
+            }
+          },
+          "pageInfo": {
+            "type": "object",
+            "required": [
+              "hasNextPage",
+              "hasPreviousPage",
+              "totalCount"
+            ],
+            "properties": {
+              "endCursor": {},
+              "hasNextPage": {
+                "type": "boolean"
+              },
+              "hasPreviousPage": {
+                "type": "boolean"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "startCursor": {},
+              "totalCount": {
+                "type": "integer"
+              },
+              "totalPage": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "Asset": {
+        "type": "object",
+        "required": [
+          "assetId",
+          "assetClass",
+          "assetLevel",
+          "symbol",
+          "name",
+          "currency",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "assetClass": {
+            "$ref": "#/components/schemas/AssetClass"
+          },
+          "assetId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "assetLevel": {
+            "$ref": "#/components/schemas/AssetLevel"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "deletedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "exchange": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "icbCode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Mã ngành ICB. `filterable` để trang ngành lọc được danh sách cổ phiếu thành viên."
+          },
+          "listedFrom": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "listedTo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "Khác `None` nghĩa là đã hủy niêm yết. Giữ lại bản ghi là cố ý: xoá mã đã hủy chính là\ncách tạo ra survivorship bias."
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AssetClass": {
+        "type": "string",
+        "description": "Lớp tài sản. Có sẵn `Crypto` và `EquityIntl` từ ngày đầu để mở rộng về sau chỉ cần thêm một\nprovider, không phải migration (ADR-005).",
+        "enum": [
+          "EQUITY_VN",
+          "CRYPTO",
+          "EQUITY_INTL"
+        ]
+      },
+      "AssetLevel": {
+        "type": "string",
+        "description": "Ba cấp tài sản. Khớp enum `asset_level` của Postgres.",
+        "enum": [
+          "MARKET",
+          "SECTOR",
+          "STOCK"
+        ]
+      },
+      "AssetPage": {
+        "type": "object",
+        "description": "Trang kết quả của Asset.",
+        "required": [
+          "edges",
+          "pageInfo"
+        ],
+        "properties": {
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "node",
+                "cursor"
+              ],
+              "properties": {
+                "cursor": {
+                  "type": "string"
+                },
+                "node": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            }
+          },
+          "pageInfo": {
+            "type": "object",
+            "required": [
+              "hasNextPage",
+              "hasPreviousPage",
+              "totalCount"
+            ],
+            "properties": {
+              "endCursor": {},
+              "hasNextPage": {
+                "type": "boolean"
+              },
+              "hasPreviousPage": {
+                "type": "boolean"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "startCursor": {},
+              "totalCount": {
+                "type": "integer"
+              },
+              "totalPage": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "AssetRef": {
+        "type": "object",
+        "required": [
+          "level",
+          "symbol",
+          "name"
+        ],
+        "properties": {
+          "exchange": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "level": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          }
+        }
+      },
+      "Checks": {
+        "type": "object",
+        "required": [
+          "database"
+        ],
+        "properties": {
+          "database": {
+            "$ref": "#/components/schemas/DatabaseCheck"
+          }
+        }
+      },
+      "CreateDataSourceInput": {
+        "type": "object",
+        "description": "Input tạo mới `data_source`. Sinh bởi `#[derive(CrudResource)]`.",
+        "required": [
+          "code",
+          "displayName",
+          "baseUrl",
+          "licenceNote"
+        ],
+        "properties": {
+          "baseUrl": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "licenceNote": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rateLimitPerMin": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DataSource": {
+        "type": "object",
+        "required": [
+          "sourceId",
+          "code",
+          "displayName",
+          "baseUrl",
+          "licenceNote",
+          "priority",
+          "rateLimitPerMin",
+          "enabled",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "baseUrl": {
+            "type": "string",
+            "description": "Không `filterable`: lọc theo chuỗi URL dài bằng `startsWith` là cách dò nội dung từng ký tự."
+          },
+          "code": {
+            "type": "string",
+            "description": "Định danh nguồn. `immutable` vì `symbol_mapping` và provider registry tham chiếu tới nó —\nđổi nó là đổi danh tính của nguồn, không phải cập nhật thuộc tính."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Nguồn mới mặc định TẮT: bật một nguồn là hành động có chủ ý, không phải mặc định."
+          },
+          "licenceNote": {
+            "type": "string",
+            "description": "Tình trạng pháp lý. `NOT NULL` ở DB và không có default ở đây ⇒ quên là lỗi deserialize\nrõ ràng, không phải lỗi `NOT NULL` khó hiểu từ Postgres (ADR-011)."
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Thấp hơn = ưu tiên hơn khi nhiều nguồn cùng làm được một việc."
+          },
+          "rateLimitPerMin": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "sourceId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DataSourcePage": {
+        "type": "object",
+        "description": "Trang kết quả của DataSource.",
+        "required": [
+          "edges",
+          "pageInfo"
+        ],
+        "properties": {
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "node",
+                "cursor"
+              ],
+              "properties": {
+                "cursor": {
+                  "type": "string"
+                },
+                "node": {
+                  "$ref": "#/components/schemas/DataSource"
+                }
+              }
+            }
+          },
+          "pageInfo": {
+            "type": "object",
+            "required": [
+              "hasNextPage",
+              "hasPreviousPage",
+              "totalCount"
+            ],
+            "properties": {
+              "endCursor": {},
+              "hasNextPage": {
+                "type": "boolean"
+              },
+              "hasPreviousPage": {
+                "type": "boolean"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "startCursor": {},
+              "totalCount": {
+                "type": "integer"
+              },
+              "totalPage": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "DataStatus": {
+        "type": "object",
+        "description": "Tình trạng dữ liệu, để trang người dùng nói thật khi dữ liệu cũ.",
+        "required": [
+          "assetsWithPrices",
+          "priceRows",
+          "liveForecasts",
+          "abstainedForecasts",
+          "corporateActionCoverage",
+          "featureSetVersion",
+          "disclaimer"
+        ],
+        "properties": {
+          "abstainedForecasts": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "assetsWithPrices": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "corporateActionCoverage": {
+            "type": "string",
+            "description": "Số mã đã nạp sự kiện doanh nghiệp trên tổng số cổ phiếu — coverage thật, không phỏng đoán."
+          },
+          "disclaimer": {
+            "type": "string"
+          },
+          "featureSetVersion": {
+            "type": "string"
+          },
+          "lagDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Số ngày lịch từ phiên đó tới hôm nay. Lớn nghĩa là dữ liệu đang cũ."
+          },
+          "latestForecastAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Lần sinh dự báo gần nhất."
+          },
+          "latestTradingDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Phiên giao dịch mới nhất đã có giá."
+          },
+          "liveForecasts": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "priceRows": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "DatabaseCheck": {
+        "type": "object",
+        "required": [
+          "reachable",
+          "latencyMs"
+        ],
+        "properties": {
+          "latencyMs": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "reachable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EnqueueJobInput": {
+        "type": "object",
+        "required": [
+          "jobType"
+        ],
+        "properties": {
+          "idempotencyKey": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Khoá chặn trùng. Không truyền thì sinh tự động theo phút."
+          },
+          "jobType": {
+            "$ref": "#/components/schemas/JobType"
+          },
+          "params": {
+            "description": "Tham số job. Mặc định `{}`."
+          }
+        }
+      },
+      "EnqueueJobResult": {
+        "type": "object",
+        "required": [
+          "jobType",
+          "idempotencyKey",
+          "created"
+        ],
+        "properties": {
+          "created": {
+            "type": "boolean",
+            "description": "`true` khi lần gọi này thực sự tạo job mới."
+          },
+          "idempotencyKey": {
+            "type": "string"
+          },
+          "jobRunId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "`None` khi job đã tồn tại với cùng `idempotencyKey` — **không phải lỗi**."
+          },
+          "jobType": {
+            "$ref": "#/components/schemas/JobType"
+          }
+        }
+      },
+      "ErrorBody": {
+        "type": "object",
+        "description": "Lỗi. Với `INTERNAL_ERROR`, `message` luôn là chuỗi chung chung — chi tiết chỉ nằm trong log phía server.",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Mã lỗi ổn định. Kernel sinh `BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR`. Module có thể thêm mã riêng cho cùng mã HTTP — ví dụ `FORECAST_NOT_READY` là 404 nghĩa là \"mã có thật, chưa có dự báo\", khác với `NOT_FOUND` nghĩa là \"không có mã này\"."
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "Forecast": {
+        "type": "object",
+        "required": [
+          "forecastId",
+          "assetId",
+          "horizonSessions",
+          "targetDefinition",
+          "asofAt",
+          "dataThrough",
+          "predictionStatus",
+          "modelVersionId",
+          "validationStatus",
+          "featureSnapshotSha256",
+          "dataCoverage",
+          "createdAt"
+        ],
+        "properties": {
+          "abstainReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "asofAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Thời điểm ra quyết định: mọi feature chỉ dùng dữ liệu có `available_at <= mốc này`."
+          },
+          "assetId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dataCoverage": {
+            "type": "number",
+            "format": "double"
+          },
+          "dataThrough": {
+            "type": "string",
+            "format": "date",
+            "description": "Phiên giao dịch mới nhất mà dữ liệu đã tới. Khác `asof_at` khi nguồn trễ."
+          },
+          "featureSnapshotSha256": {
+            "type": "string"
+          },
+          "forecastId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "horizonSessions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "jobRunId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "modelVersionId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pNotUp": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Phần bù của `p_up`, **gồm cả giá đi ngang** — không phải xác suất giảm."
+          },
+          "pUp": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "`None` khi `prediction_status` không phải LIVE/STALE. Ràng buộc DB bảo đảm điều đó."
+          },
+          "predictionStatus": {
+            "$ref": "#/components/schemas/PredictionStatus"
+          },
+          "targetDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "Phiên đích sau `horizon_sessions` phiên. `None` khi chưa xác định được."
+          },
+          "targetDefinition": {
+            "type": "string",
+            "description": "Ví dụ `close_adj(t+21)>close_adj(t)`. Ghi rõ để người đọc biết nhãn nghĩa là gì."
+          },
+          "validationStatus": {
+            "$ref": "#/components/schemas/ValidationStatus"
+          }
+        }
+      },
+      "ForecastPage": {
+        "type": "object",
+        "description": "Trang kết quả của Forecast.",
+        "required": [
+          "edges",
+          "pageInfo"
+        ],
+        "properties": {
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "node",
+                "cursor"
+              ],
+              "properties": {
+                "cursor": {
+                  "type": "string"
+                },
+                "node": {
+                  "$ref": "#/components/schemas/Forecast"
+                }
+              }
+            }
+          },
+          "pageInfo": {
+            "type": "object",
+            "required": [
+              "hasNextPage",
+              "hasPreviousPage",
+              "totalCount"
+            ],
+            "properties": {
+              "endCursor": {},
+              "hasNextPage": {
+                "type": "boolean"
+              },
+              "hasPreviousPage": {
+                "type": "boolean"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "startCursor": {},
+              "totalCount": {
+                "type": "integer"
+              },
+              "totalPage": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "ForecastResponse": {
+        "type": "object",
+        "required": [
+          "asset",
+          "asOf",
+          "dataThrough",
+          "modelVersion",
+          "validationStatus",
+          "disclaimer",
+          "horizons"
+        ],
+        "properties": {
+          "asOf": {
+            "type": "string"
+          },
+          "asset": {
+            "$ref": "#/components/schemas/AssetRef"
+          },
+          "dataThrough": {
+            "type": "string"
+          },
+          "disclaimer": {
+            "type": "string",
+            "description": "Câu này luôn có mặt. Xem [`DISCLAIMER`]."
+          },
+          "horizons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HorizonForecast"
+            }
+          },
+          "modelVersion": {
+            "type": "string",
+            "description": "`{ho mo hinh}.{phien ban tap feature}` — phan DUNG CHUNG cho moi ky han.\n\nKHONG dung `model_version.code`: code co chua `h21`, nen hien thi no ben canh mot mang 5 ky\nhan la noi sai ve mo hinh nao da sinh ra ky han nao."
+          },
+          "validationStatus": {
+            "type": "string"
+          }
+        }
+      },
+      "HorizonForecast": {
+        "type": "object",
+        "required": [
+          "horizonSessions",
+          "asOf",
+          "dataThrough",
+          "modelVersion",
+          "validationStatus",
+          "predictionStatus"
+        ],
+        "properties": {
+          "abstainReason": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AbstainReason"
+              }
+            ]
+          },
+          "asOf": {
+            "type": "string",
+            "description": "Evidence belongs to this horizon, which may have a different update time."
+          },
+          "dataThrough": {
+            "type": "string"
+          },
+          "horizonSessions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "modelVersion": {
+            "type": "string"
+          },
+          "predictionStatus": {
+            "type": "string"
+          },
+          "probabilityNotUp": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Phần bù của [`Self::probability_up`], **gồm cả giá đi ngang**."
+          },
+          "probabilityUp": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "`None` khi không phát được. **Không bao giờ là 0.5 để thay cho \"không biết\"**."
+          },
+          "targetDate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "validationStatus": {
+            "type": "string"
+          }
+        }
+      },
+      "JobRun": {
+        "type": "object",
+        "required": [
+          "jobRunId",
+          "jobType",
+          "params",
+          "status",
+          "requestedAt",
+          "attempts"
+        ],
+        "properties": {
+          "attempts": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "finishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "idempotencyKey": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "jobRunId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "jobType": {
+            "type": "string"
+          },
+          "lastError": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "params": {
+            "$ref": "#/components/schemas/Value"
+          },
+          "requestedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "requestedBy": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "startedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "stats": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Value",
+                "description": "Kết quả job tự báo. Đây là chỗ `failed`/`empty` của ingest nằm — xem ADR-026."
+              }
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          }
+        }
+      },
+      "JobRunPage": {
+        "type": "object",
+        "description": "Trang kết quả của JobRun.",
+        "required": [
+          "edges",
+          "pageInfo"
+        ],
+        "properties": {
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "node",
+                "cursor"
+              ],
+              "properties": {
+                "cursor": {
+                  "type": "string"
+                },
+                "node": {
+                  "$ref": "#/components/schemas/JobRun"
+                }
+              }
+            }
+          },
+          "pageInfo": {
+            "type": "object",
+            "required": [
+              "hasNextPage",
+              "hasPreviousPage",
+              "totalCount"
+            ],
+            "properties": {
+              "endCursor": {},
+              "hasNextPage": {
+                "type": "boolean"
+              },
+              "hasPreviousPage": {
+                "type": "boolean"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "startCursor": {},
+              "totalCount": {
+                "type": "integer"
+              },
+              "totalPage": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "JobStatus": {
+        "type": "string",
+        "description": "Trạng thái một lần chạy job.",
+        "enum": [
+          "PENDING",
+          "RUNNING",
+          "SUCCEEDED",
+          "FAILED",
+          "CANCELLED"
+        ]
+      },
+      "JobType": {
+        "type": "string",
+        "description": "Bản mô tả `KNOWN_JOB_TYPES` cho hợp đồng OpenAPI (schema `JobType`).",
+        "enum": [
+          "INGEST_UNIVERSE",
+          "INGEST_PRICE",
+          "INGEST_CORPORATE_ACTIONS",
+          "INGEST_INDUSTRY",
+          "REBUILD_CALENDAR",
+          "BUILD_SECTOR_INDEX",
+          "COMPUTE_FEATURE",
+          "COMPUTE_FORECAST",
+          "EVALUATE_FORECAST",
+          "RUN_VALIDATION"
+        ]
+      },
+      "LivenessBody": {
+        "type": "object",
+        "required": [
+          "status",
+          "service",
+          "version",
+          "uptimeSeconds"
+        ],
+        "properties": {
+          "service": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "uptimeSeconds": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "LoginInput": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MarketAsset": {
+        "type": "object",
+        "required": [
+          "assetId",
+          "symbol",
+          "name",
+          "level",
+          "currency",
+          "prices"
+        ],
+        "properties": {
+          "assetId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "exchange": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "forecast": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SnapshotForecast"
+              }
+            ]
+          },
+          "level": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "prices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PricePoint"
+            }
+          },
+          "sector": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "symbol": {
+            "type": "string"
+          }
+        }
+      },
+      "MarketSeries": {
+        "type": "object",
+        "required": [
+          "symbol",
+          "level",
+          "currency",
+          "prices"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string"
+          },
+          "prices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PricePoint"
+            }
+          },
+          "symbol": {
+            "type": "string"
+          }
+        }
+      },
+      "MarketSnapshot": {
+        "type": "object",
+        "required": [
+          "items",
+          "horizonSessions",
+          "disclaimer"
+        ],
+        "properties": {
+          "disclaimer": {
+            "type": "string"
+          },
+          "horizonSessions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MarketAsset"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "ModelStatus": {
+        "type": "string",
+        "enum": [
+          "DRAFT",
+          "SHADOW",
+          "ACTIVE",
+          "RETIRED"
+        ]
+      },
+      "ModelVersion": {
+        "type": "object",
+        "required": [
+          "modelVersionId",
+          "code",
+          "family",
+          "assetLevel",
+          "horizonSessions",
+          "featureSetVersion",
+          "hyperparams",
+          "codeSha256",
+          "status",
+          "validationStatus",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "activatedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "assetLevel": {
+            "$ref": "#/components/schemas/AssetLevel"
+          },
+          "code": {
+            "type": "string"
+          },
+          "codeSha256": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "family": {
+            "type": "string"
+          },
+          "featureSetVersion": {
+            "type": "string",
+            "description": "Hash tự sinh từ tập FeatureSpec đang đăng ký. Mô hình chỉ dùng được với đúng tập feature\nđã huấn luyện cùng nó (ADR-016)."
+          },
+          "horizonSessions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hyperparams": {
+            "type": "object"
+          },
+          "modelVersionId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ModelStatus"
+          },
+          "trainedThrough": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "validationStatus": {
+            "$ref": "#/components/schemas/ValidationStatus"
+          }
+        }
+      },
+      "ModelVersionPage": {
+        "type": "object",
+        "description": "Trang kết quả của ModelVersion.",
+        "required": [
+          "edges",
+          "pageInfo"
+        ],
+        "properties": {
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "node",
+                "cursor"
+              ],
+              "properties": {
+                "cursor": {
+                  "type": "string"
+                },
+                "node": {
+                  "$ref": "#/components/schemas/ModelVersion"
+                }
+              }
+            }
+          },
+          "pageInfo": {
+            "type": "object",
+            "required": [
+              "hasNextPage",
+              "hasPreviousPage",
+              "totalCount"
+            ],
+            "properties": {
+              "endCursor": {},
+              "hasNextPage": {
+                "type": "boolean"
+              },
+              "hasPreviousPage": {
+                "type": "boolean"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "startCursor": {},
+              "totalCount": {
+                "type": "integer"
+              },
+              "totalPage": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "PredictionStatus": {
+        "type": "string",
+        "description": "Trạng thái ở cấp **kỳ hạn**: một mã có thể đủ dữ liệu cho h=1 nhưng không đủ cho h=252.",
+        "enum": [
+          "LIVE",
+          "STALE",
+          "UNAVAILABLE",
+          "ABSTAINED"
+        ]
+      },
+      "PricePoint": {
+        "type": "object",
+        "required": [
+          "date",
+          "close"
+        ],
+        "properties": {
+          "close": {
+            "type": "number",
+            "format": "double"
+          },
+          "date": {
+            "type": "string"
+          },
+          "volume": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "ReadinessBody": {
+        "type": "object",
+        "required": [
+          "status",
+          "service",
+          "checks"
+        ],
+        "properties": {
+          "checks": {
+            "$ref": "#/components/schemas/Checks"
+          },
+          "service": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "RefreshInput": {
+        "type": "object",
+        "required": [
+          "refreshToken"
+        ],
+        "properties": {
+          "refreshToken": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SnapshotForecast": {
+        "type": "object",
+        "required": [
+          "predictionStatus",
+          "validationStatus",
+          "dataThrough",
+          "asOf",
+          "modelVersion"
+        ],
+        "properties": {
+          "abstainReason": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AbstainReason"
+              }
+            ]
+          },
+          "asOf": {
+            "type": "string"
+          },
+          "dataThrough": {
+            "type": "string"
+          },
+          "modelVersion": {
+            "type": "string"
+          },
+          "predictionStatus": {
+            "type": "string"
+          },
+          "probabilityNotUp": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "probabilityUp": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "validationStatus": {
+            "type": "string"
+          }
+        }
+      },
+      "TokenPair": {
+        "type": "object",
+        "required": [
+          "accessToken",
+          "refreshToken",
+          "expiresIn"
+        ],
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Số giây access token còn hiệu lực.",
+            "minimum": 0
+          },
+          "refreshToken": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateAdminUserInput": {
+        "type": "object",
+        "description": "Input cập nhật `admin_user`. Mọi field `Option` ⇒ ngữ nghĩa partial update (PATCH).",
+        "properties": {
+          "displayName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isActive": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateAssetInput": {
+        "type": "object",
+        "description": "Input cập nhật `asset`. Mọi field `Option` ⇒ ngữ nghĩa partial update (PATCH).",
+        "properties": {
+          "assetClass": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AssetClass"
+              }
+            ]
+          },
+          "assetLevel": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AssetLevel"
+              }
+            ]
+          },
+          "currency": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "exchange": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "icbCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "listedFrom": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "listedTo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateDataSourceInput": {
+        "type": "object",
+        "description": "Input cập nhật `data_source`. Mọi field `Option` ⇒ ngữ nghĩa partial update (PATCH).",
+        "properties": {
+          "baseUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "displayName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "licenceNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "priority": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "rateLimitPerMin": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateModelVersionInput": {
+        "type": "object",
+        "description": "Input cập nhật `model_version`. Mọi field `Option` ⇒ ngữ nghĩa partial update (PATCH).",
+        "properties": {
+          "activatedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ModelStatus"
+              }
+            ]
+          },
+          "validationStatus": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ValidationStatus"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ValidationRun": {
+        "type": "object",
+        "description": "Kết quả một lần kiểm chứng mô hình.\n\n`inferred_membership_ratio` là cột **bắt buộc báo cáo** theo ADR-010: kết quả cấp ngành và\ncấp cổ phiếu kém tin cậy hơn cấp thị trường đúng bằng mức này.",
+        "required": [
+          "validationRunId",
+          "modelVersionId",
+          "periodFrom",
+          "periodTo",
+          "nForecasts",
+          "createdAt"
+        ],
+        "properties": {
+          "accuracy": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "auc": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "brier": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "brierSkillCiHigh": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "brierSkillCiLow": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "brierSkillPercent": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "inferredMembershipRatio": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ADR-010: tỷ lệ liên kết ngành là suy đoán. **Bắt buộc** có trong mọi báo cáo."
+          },
+          "jobRunId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "logLoss": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "modelVersionId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nForecasts": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "periodFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "periodTo": {
+            "type": "string",
+            "format": "date"
+          },
+          "validationRunId": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ValidationRunPage": {
+        "type": "object",
+        "description": "Trang kết quả của ValidationRun.",
+        "required": [
+          "edges",
+          "pageInfo"
+        ],
+        "properties": {
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "node",
+                "cursor"
+              ],
+              "properties": {
+                "cursor": {
+                  "type": "string"
+                },
+                "node": {
+                  "$ref": "#/components/schemas/ValidationRun"
+                }
+              }
+            }
+          },
+          "pageInfo": {
+            "type": "object",
+            "required": [
+              "hasNextPage",
+              "hasPreviousPage",
+              "totalCount"
+            ],
+            "properties": {
+              "endCursor": {},
+              "hasNextPage": {
+                "type": "boolean"
+              },
+              "hasPreviousPage": {
+                "type": "boolean"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "startCursor": {},
+              "totalCount": {
+                "type": "integer"
+              },
+              "totalPage": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "ValidationStatus": {
+        "type": "string",
+        "description": "Mức độ kiểm chứng. Khớp enum `validation_status` của Postgres và\n`merix_kernel::ValidationStatus`.",
+        "enum": [
+          "NOT_VALIDATED",
+          "BASELINE_ONLY",
+          "VALIDATED_EXPLORATORY",
+          "VALIDATED_PROSPECTIVE",
+          "DEGRADED"
+        ]
+      },
+      "Value": {}
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

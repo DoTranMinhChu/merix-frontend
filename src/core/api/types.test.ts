@@ -1,5 +1,5 @@
 /**
- * Test cac rang buoc nghiep vu o phia frontend, va doi chieu kieu voi hop dong OpenAPI.
+ * Test cac rang buoc nghiep vu o phia frontend, va doi chieu kieu voi hop dong OpenAPI sinh tu backend.
  *
  * # Vi sao frontend can test rieng cho nhung dieu nay
  *
@@ -21,43 +21,25 @@ import {
     type ValidationStatus,
 } from './types';
 
-const openapi = readFileSync(
-    fileURLToPath(new URL('../../../contracts/openapi.yaml', import.meta.url)),
-    'utf8',
+const openapi = JSON.parse(
+    readFileSync(fileURLToPath(new URL('../../../contracts/openapi.json', import.meta.url)), 'utf8'),
 );
 
 /**
- * Cac gia tri cua mot enum trong openapi.yaml.
+ * Các giá trị của một schema enum trong hợp đồng sinh từ backend (`contracts/openapi.json`).
  *
- * Chi lay cac dong `- ` thuoc **khoi `enum:`**, va dung ngay khi ra khoi khoi do.
- *
- * Ban dau loc moi dong bat dau bang `- ` trong ca schema, nen no bat luon cac gach dau dong
- * trong `description:`. Mot phep doi chieu bat qua nhieu thi khong con la phep doi chieu — no
- * chi bao do vi chinh no sai.
+ * Thiếu schema hoặc enum rỗng thì ném lỗi chứ không trả mảng rỗng: một phép đối chiếu với tập
+ * rỗng không còn là đối chiếu — nó chỉ báo đỏ vì chính nó sai.
  */
 function enumValues(name: string): string[] {
-    const lines = openapi.split('\n');
-    const start = lines.findIndex((l) => l.trim() === `${name}:`);
-    if (start < 0) throw new Error(`openapi.yaml khong co schema ${name}`);
-
-    const enumAt = lines.findIndex((l, k) => k > start && l.trim() === 'enum:');
-    if (enumAt < 0 || enumAt > start + 6) {
-        throw new Error(`schema ${name} khong co khoi enum: dang nhieu dong`);
+    const schema = openapi?.components?.schemas?.[name];
+    if (!schema) throw new Error(`openapi.json khong co schema ${name} (chay: npm run gen:contract)`);
+    if (!Array.isArray(schema.enum) || schema.enum.length === 0) {
+        throw new Error(`schema ${name} co enum rong`);
     }
-    const indent = lines[enumAt].search(/\S/);
-
-    const out: string[] = [];
-    for (let k = enumAt + 1; k < lines.length; k += 1) {
-        const line = lines[k];
-        if (line.trim() === '') break;
-        const col = line.search(/\S/);
-        // Ra khoi khoi enum: thut le bang hoac nho hon, hoac khong con la mot muc danh sach.
-        if (col <= indent || !line.trim().startsWith('- ')) break;
-        out.push(line.trim().slice(2).trim());
-    }
-    if (out.length === 0) throw new Error(`schema ${name} co enum rong`);
-    return out;
+    return schema.enum.map(String);
 }
+
 describe('formatProbability', () => {
     it('null KHONG duoc hien thanh 0% hay 50%', () => {
         // Day la rang buoc trung tam: 50% la mot du bao CO NOI DUNG (can bang that), khac han
@@ -116,7 +98,7 @@ describe('horizonLabel', () => {
     });
 });
 
-describe('doi chieu voi shared/contracts/openapi.yaml', () => {
+describe('doi chieu voi contracts/openapi.json', () => {
     it('ValidationStatus khop hop dong', () => {
         const want = enumValues('ValidationStatus').sort();
         const got = Object.keys(VALIDATION_LABELS).sort();

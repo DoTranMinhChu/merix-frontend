@@ -1,0 +1,15 @@
+# Node / Astro
+node_modules/
+dist/
+.astro/
+
+# Cấu hình máy local — KHÔNG commit (mẫu nằm ở .env.example)
+.env
+.env.local
+*.local
+
+*.log
+Thumbs.db
+.DS_Store
+.vscode/
+.idea/

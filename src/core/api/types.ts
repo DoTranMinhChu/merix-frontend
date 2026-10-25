@@ -9,7 +9,7 @@
  * lang la cach de trang hien `undefined`.
  *
  * Doi chieu that nam o `src/core/api/types.test.ts` — no doc truc tiep
- * `shared/contracts/openapi.yaml` nen hai ben khong the lech nhau ma van xanh.
+ * `contracts/openapi.json` (sinh tu backend) nen hai ben khong the lech nhau ma van xanh.
  */
 
 /** Cap tai san. SCREAMING_SNAKE theo ADR-019, khop enum `asset_level` cua Postgres. */

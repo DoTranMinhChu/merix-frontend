@@ -9,7 +9,9 @@
     "preview": "astro preview",
     "check": "astro check",
     "lint": "oxlint src",
-    "test": "vitest run"
+    "test": "vitest run",
+    "gen:contract": "node scripts/gen-contract.mjs",
+    "check:contract": "node scripts/gen-contract.mjs --check"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.4",

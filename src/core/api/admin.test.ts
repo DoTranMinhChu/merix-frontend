@@ -3,8 +3,8 @@
  *
  * Ba thu duoc kiem o day, vi ca ba deu la cho ma mot loi im lang se tru lau:
  *
- * 1. `JOB_TYPES` khop `shared/contracts/openapi.yaml` — chep tay giua ba noi thi hai ben lech ma
- *    test van xanh.
+ * 1. `JOB_TYPES` khop `contracts/openapi.json` (sinh tu backend) — chep tay giua nhieu noi thi hai
+ *    ben lech ma test van xanh.
  * 2. `duongDanAnToan` chan open redirect.
  * 3. `jobCanhBao` doc `stats` cua job THANH CONG — phat hien ADR-026.
  */
@@ -14,49 +14,27 @@ import { join } from 'node:path';
 import { JOB_DESCRIPTIONS, JOB_TYPES, jobCanhBao, skillLabel, type JobRun } from './admin-types';
 import { duongDanAnToan, nguonGocHopLe } from './session';
 
-const OPENAPI = join(import.meta.dirname, '../../../contracts/openapi.yaml');
+const OPENAPI = join(import.meta.dirname, '../../../contracts/openapi.json');
 
 /**
- * Doc khoi `enum:` cua mot schema trong openapi.yaml.
+ * Các giá trị của một schema enum trong hợp đồng sinh từ backend (`contracts/openapi.json`).
  *
- * Doc theo thut le thay vi regex ca file: mot dau gach dau dong trong `description` cua schema
- * khac se bi tinh la gia tri enum.
+ * Đọc JSON đã parse thay vì tách dòng YAML: không còn chỗ nào để một gạch đầu dòng trong
+ * `description` bị tính nhầm là giá trị enum. Thiếu schema thì ném lỗi chứ không trả mảng rỗng —
+ * một phép đối chiếu với tập rỗng chỉ báo đỏ vì chính nó sai.
  */
 function enumValues(schemaName: string): string[] {
-    const yaml = readFileSync(OPENAPI, 'utf8');
-    const lines = yaml.split('\n');
-    const start = lines.findIndex((l) => l.trim() === `${schemaName}:`);
-    if (start === -1) throw new Error(`openapi.yaml khong co schema ${schemaName}`);
-
-    const out: string[] = [];
-    let trongEnum = false;
-    for (let i = start + 1; i < lines.length; i++) {
-        const line = lines[i];
-        if (line.trim() === '') continue;
-        const thut = line.length - line.trimStart().length;
-        // Ra khoi than cua schema nay.
-        const thutSchema = lines[start].length - lines[start].trimStart().length;
-        if (thut <= thutSchema) break;
-
-        if (line.trim() === 'enum:') {
-            trongEnum = true;
-            continue;
-        }
-        if (trongEnum) {
-            const m = line.trim().match(/^- (.+)$/);
-            if (m) {
-                out.push(m[1].trim());
-                continue;
-            }
-            // Mot key khac bat dau => khoi enum da het.
-            trongEnum = false;
-        }
+    const doc = JSON.parse(readFileSync(OPENAPI, 'utf8'));
+    const schema = doc?.components?.schemas?.[schemaName];
+    if (!schema) throw new Error(`openapi.json khong co schema ${schemaName} (chay: npm run gen:contract)`);
+    if (!Array.isArray(schema.enum) || schema.enum.length === 0) {
+        throw new Error(`schema ${schemaName} khong co enum`);
     }
-    return out;
+    return schema.enum.map(String);
 }
 
 describe('JOB_TYPES', () => {
-    it('khop hai chieu voi openapi.yaml', () => {
+    it('khop hai chieu voi openapi.json', () => {
         const declared = enumValues('JobType');
         expect(declared.length).toBeGreaterThanOrEqual(10);
         // Hai chieu: thieu o ben nao cung la lech hop dong.
