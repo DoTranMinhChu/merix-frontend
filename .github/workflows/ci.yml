@@ -4,6 +4,11 @@ on:
   push:
     branches: [main, master]
   pull_request:
+  # Lệch hợp đồng có thể do một thay đổi CHỈ ở backend — khi đó không có push nào vào repo này để
+  # kích hoạt CI. Chạy định kỳ để bản chụp lệch vẫn hiện ra trong một lần chạy có người nhìn thấy.
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
 
 jobs:
   frontend:
@@ -24,7 +29,35 @@ jobs:
       # `nguonGocHopLe` chặn CSRF, và enum viết tay khớp `contracts/openapi.json`.
       #
       # `contracts/openapi.json` là bản chụp hợp đồng sinh từ backend, được commit nên bước này
-      # không cần dựng backend. Kiểm lệch với backend thật: `npm run check:contract` (chạy tay).
+      # không cần dựng backend. Việc bản chụp còn KHỚP code backend do job `contract` bên dưới kiểm.
       - run: npm test
       # `build` đã gồm `astro check`, tức là type-check đầy đủ.
       - run: npm run build
+
+  # Bản chụp hợp đồng phải khớp CODE NGUỒN backend. Một bản chụp cũ làm test kiểu ở trên xanh mà
+  # vô nghĩa (chúng so với chính bản chụp), nên đây là chỗ duy nhất bắt được lệch — và nó phải ĐỎ,
+  # không được bỏ qua. Hai repo đều công khai nên không cần token.
+  contract:
+    name: Hợp đồng khớp backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: DoTranMinhChu/merix-backend
+          path: merix-backend
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      # rust-toolchain.toml của backend ghim compiler; chạy cargo trong thư mục đó là đủ.
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: merix-backend
+      # Dựng example print_openapi từ code nguồn backend rồi so từng giá trị với
+      # contracts/openapi.json. Lệch thì thoát mã 1 và liệt kê path/schema nào khác.
+      - name: Kiểm bản chụp hợp đồng
+        env:
+          BACKEND_DIR: merix-backend
+        run: npm run check:contract

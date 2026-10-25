@@ -69,10 +69,37 @@ const text = JSON.stringify(doc, null, 2) + '\n';
 const nPaths = Object.keys(doc.paths).length;
 const nSchemas = Object.keys(doc.components.schemas).length;
 
+/** Liệt kê CỤ THỂ cái gì lệch, để người thấy CI đỏ biết ngay phải nhìn đâu. */
+function moTaLech(cu, moi) {
+    const dong = [];
+    const so = (nhan, a, b) => {
+        const ka = Object.keys(a ?? {});
+        const kb = Object.keys(b ?? {});
+        const chiCu = ka.filter((k) => !kb.includes(k));
+        const chiMoi = kb.filter((k) => !ka.includes(k));
+        const khac = ka.filter((k) => kb.includes(k) && JSON.stringify(a[k]) !== JSON.stringify(b[k]));
+        if (chiCu.length) dong.push(`  ${nhan} chỉ có trong bản đã commit: ${chiCu.join(', ')}`);
+        if (chiMoi.length) dong.push(`  ${nhan} chỉ có trong code nguồn: ${chiMoi.join(', ')}`);
+        if (khac.length) dong.push(`  ${nhan} có nội dung khác: ${khac.join(', ')}`);
+    };
+    so('path', cu?.paths, moi.paths);
+    so('schema', cu?.components?.schemas, moi.components.schemas);
+    if (!dong.length) dong.push('  (chỉ khác ở phần ngoài path/schema, hoặc chỉ khác định dạng)');
+    return dong.join('\n');
+}
+
 if (kiemTra) {
-    const cu = existsSync(out) ? readFileSync(out, 'utf8').replace(/\r\n/g, '\n') : '';
-    if (cu !== text) {
-        console.error(`contracts/openapi.json LỆCH ${nguon}. Chạy \`npm run gen:contract\`, xem diff rồi commit.`);
+    const cuText = existsSync(out) ? readFileSync(out, 'utf8').replace(/\r\n/g, '\n') : '';
+    if (cuText !== text) {
+        let cu = null;
+        try {
+            cu = JSON.parse(cuText);
+        } catch {
+            // Bản đã commit không phải JSON: moTaLech sẽ báo mọi thứ là "chỉ có trong code nguồn".
+        }
+        console.error(
+            `contracts/openapi.json LỆCH ${nguon}:\n${moTaLech(cu, doc)}\nChạy \`npm run gen:contract\`, xem diff rồi commit.`,
+        );
         process.exit(1);
     }
     console.log(`contracts/openapi.json khớp ${nguon}: ${nPaths} path, ${nSchemas} schema.`);
