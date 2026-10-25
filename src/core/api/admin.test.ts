@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import { JOB_DESCRIPTIONS, JOB_TYPES, jobCanhBao, skillLabel, type JobRun } from './admin-types';
 import { duongDanAnToan, nguonGocHopLe } from './session';
 
-const OPENAPI = join(import.meta.dirname, '../../../../shared/contracts/openapi.yaml');
+const OPENAPI = join(import.meta.dirname, '../../../contracts/openapi.yaml');
 
 /**
  * Doc khoi `enum:` cua mot schema trong openapi.yaml.

@@ -4,6 +4,14 @@ Astro 5 (SSR) + SolidJS islands + Tailwind 4. Theo stack của
 `boilerplate-astro-ddd-graphql-fe`, khác ở chỗ gọi **REST** thay vì GraphQL
 ([ADR-014](../docs/DECISIONS.md#adr-014)).
 
+## Repo này nằm ở đâu
+
+Repo `merix-frontend` (https://github.com/DoTranMinhChu/merix-frontend) là **bản sinh ra** từ thư mục
+`frontend/` của monorepo MERIX; phát triển diễn ra ở monorepo, rồi `scripts/sync-repos.sh` đẩy
+lên đây. Đừng sửa trực tiếp ở repo này. Backend: https://github.com/DoTranMinhChu/merix-backend,
+nơi `shared/contracts/openapi.yaml` là hợp đồng API chuẩn. `contracts/openapi.yaml` ở đây là bản sao,
+CI so với bản gốc và fail nếu lệch. Các liên kết `../docs/...` chỉ đúng trong monorepo.
+
 ## Chạy
 
 ```bash
@@ -32,7 +40,7 @@ lo phần còn lại sau lần tải đầu. (Phase 5.)
 src/
   core/
     api/client.ts    gọi main-service (chỉ phía SSR)
-    api/types.ts     kiểu khớp shared/contracts/openapi.yaml
+    api/types.ts     kiểu khớp contracts/openapi.yaml
     styles/
   layouts/
     PublicLayout.astro

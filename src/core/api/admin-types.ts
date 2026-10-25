@@ -137,7 +137,7 @@ export function jobCanhBao(j: JobRun): string | null {
 /**
  * Loai job co the xep tay tu trang admin.
  *
- * Danh sach nay **duoc test doi chieu voi `shared/contracts/openapi.yaml`**, giong test o
+ * Danh sach nay **duoc test doi chieu voi `contracts/openapi.yaml`** (ban sao cua `shared/contracts/openapi.yaml` o merix-backend), giong test o
  * `merix-ops::interface`. Chep tay giua ba noi thi hai ben lech nhau ma test van xanh, va trang
  * admin se gui mot loai job ma backend tu choi.
  */

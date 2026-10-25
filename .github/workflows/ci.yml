@@ -1,0 +1,48 @@
+name: CI
+
+# File này nằm ở `frontend/.github/workflows/ci.yml` trong monorepo; `git subtree split` đưa nó
+# thành `.github/workflows/ci.yml` ở gốc repo merix-frontend. Sửa ở monorepo, đừng sửa trực tiếp
+# ở repo GitHub (sync-repos.sh sẽ ghi đè).
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      # Hợp đồng API gốc nằm ở merix-backend. Kiểu viết tay trong src/core/api/types.ts và các
+      # test đối chiếu đọc bản sao `contracts/openapi.yaml`; bước này bắt trường hợp backend đổi
+      # hợp đồng mà bản sao ở đây chưa được cập nhật.
+      - name: Hợp đồng API không lệch backend
+        run: |
+          URL=https://raw.githubusercontent.com/DoTranMinhChu/merix-backend/main/shared/contracts/openapi.yaml
+          # Lỗi mạng / rate limit KHÔNG được giả làm "hợp đồng lệch": chỉ cảnh báo rồi bỏ qua.
+          if ! curl -fsSL --retry 3 --retry-delay 2 --retry-all-errors --max-time 30 "$URL" -o /tmp/openapi.remote.yaml; then
+            echo "::warning::Không tải được hợp đồng từ merix-backend, bỏ qua bước kiểm tra lệch."
+            exit 0
+          fi
+          # Chuẩn hoá CRLF để lệch kiểu xuống dòng không bị tính là lệch hợp đồng.
+          if ! diff -u --strip-trailing-cr contracts/openapi.yaml /tmp/openapi.remote.yaml; then
+            echo "::error::Hợp đồng ở merix-backend đã thay đổi so với contracts/openapi.yaml. Cần xem lại kiểu viết tay trong src/core/api rồi chép bản mới vào contracts/openapi.yaml."
+            exit 1
+          fi
+
+      - run: npm ci
+      - run: npm run lint
+      # Chạy test TRƯỚC build. 39 test này giữ các ràng buộc nghiệp vụ: `formatProbability`
+      # không bao giờ trả 0.5 thay cho `null`, `duongDanAnToan` chặn open redirect,
+      # `nguonGocHopLe` chặn CSRF. Thiếu dòng này thì chúng không chạy ở đâu ngoài máy dev.
+      - run: npm test
+      # `build` đã gồm `astro check`, tức là type-check đầy đủ.
+      - run: npm run build

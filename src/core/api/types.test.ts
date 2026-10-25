@@ -22,7 +22,7 @@ import {
 } from './types';
 
 const openapi = readFileSync(
-    fileURLToPath(new URL('../../../../shared/contracts/openapi.yaml', import.meta.url)),
+    fileURLToPath(new URL('../../../contracts/openapi.yaml', import.meta.url)),
     'utf8',
 );
 
