@@ -11,7 +11,7 @@
  * Component nay khong goi API. No nhan du lieu da fetch, nen no test duoc bang gia tri cu the.
  */
 import type { HorizonForecast } from '@core/api/types';
-import { ABSTAIN_LABELS, formatProbability, horizonLabel } from '@core/api/types';
+import { ABSTAIN_LABELS, VALIDATION_LABELS, formatProbability, horizonLabel } from '@core/api/types';
 
 interface Props {
     horizons: HorizonForecast[];
@@ -22,12 +22,16 @@ const sorted = [...horizons].sort((a, b) => a.horizonSessions - b.horizonSession
 ---
 
 <table class="w-full text-sm border-collapse">
+  <caption class="sr-only">
+    Xác suất tăng và không tăng theo từng kỳ hạn dự báo, kèm phiên đích
+  </caption>
   <thead>
     <tr class="text-left text-[var(--color-muted)] border-b border-[var(--color-line)]">
-      <th class="py-2 pr-4 font-medium">Kỳ hạn</th>
-      <th class="py-2 pr-4 font-medium">Xác suất tăng</th>
-      <th class="py-2 pr-4 font-medium">Xác suất không tăng</th>
-      <th class="py-2 font-medium">Phiên đích</th>
+      <th scope="col" class="py-2 pr-4 font-medium">Kỳ hạn</th>
+      <th scope="col" class="py-2 pr-4 font-medium">Xác suất tăng</th>
+      <th scope="col" class="py-2 pr-4 font-medium">Xác suất không tăng</th>
+      <th scope="col" class="py-2 font-medium">Phiên đích</th>
+      <th scope="col" class="py-2 font-medium">Kiểm chứng / dữ liệu</th>
     </tr>
   </thead>
   <tbody>
@@ -51,6 +55,10 @@ const sorted = [...horizons].sort((a, b) => a.horizonSessions - b.horizonSession
           )}
           <td class="py-3 text-[var(--color-muted)] tabular-nums whitespace-nowrap">
             {h.targetDate ?? '—'}
+          </td>
+          <td class="py-3 text-[var(--color-muted)]">
+            {h.validationStatus ? VALIDATION_LABELS[h.validationStatus] : 'Chưa có thông tin'}
+            <small class="table-status-date">{h.dataThrough ?? '—'}</small>
           </td>
         </tr>
       );

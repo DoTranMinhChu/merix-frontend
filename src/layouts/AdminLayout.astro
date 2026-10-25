@@ -7,6 +7,8 @@
  * trang admin khong hien xac suat cho ai ca.
  */
 import '@core/styles/global.css';
+import '@core/styles/workspace.css';
+import Meta from '@modules/workspace/Meta.astro';
 import { PUBLIC_APP_NAME } from 'astro:env/client';
 
 interface Props {
@@ -30,14 +32,16 @@ const here = Astro.url.pathname.replace(/\/$/, '') || '/admin';
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title} · Admin · {PUBLIC_APP_NAME}</title>
+    <Meta title={`${title} · Admin`} noindex={true}/>
     <!-- Khu vuc noi bo: khong de search engine danh chi muc. -->
     <meta name="robots" content="noindex, nofollow" />
   </head>
-  <body class="min-h-screen flex flex-col">
+  <body class="admin-shell min-h-screen flex flex-col">
+    <a href="#noi-dung" class="skip-link">Bỏ qua, tới nội dung chính</a>
+
     <header class="border-b border-[var(--color-line)]">
       <div class="px-6 py-3 flex items-baseline gap-4 flex-wrap">
-        <a href="/" class="font-bold tracking-wide">{PUBLIC_APP_NAME}</a>
+        <a href="/" class="admin-brand" aria-label="MERIX — Tổng quan"><img class="logo-dark" src="/brand/merix-logo-on-dark.svg" alt={PUBLIC_APP_NAME} width="140" height="40"/><img class="logo-light" src="/brand/merix-logo-on-light.svg" alt={PUBLIC_APP_NAME} width="140" height="40"/></a><button data-theme-toggle aria-label="Chuyển giao diện sáng hoặc tối">◐</button>
         <span
           class="text-[10px] uppercase tracking-widest px-2 py-0.5 rounded
                  border border-[var(--color-warn)] text-[var(--color-warn)]"
@@ -57,7 +61,7 @@ const here = Astro.url.pathname.replace(/\/$/, '') || '/admin';
       </div>
 
       {nav && (
-        <nav class="px-6 pb-2 flex gap-5 text-sm">
+        <nav aria-label="Khu vực quản trị" class="px-6 pb-2 flex gap-5 text-sm">
           {MENU.map((m) => (
             <a
               href={m.href}
@@ -76,12 +80,21 @@ const here = Astro.url.pathname.replace(/\/$/, '') || '/admin';
       )}
     </header>
 
-    <main class="flex-1 px-6 py-8 max-w-6xl mx-auto w-full">
+    <main id="noi-dung" tabindex="-1" class="flex-1 px-6 py-8 max-w-6xl mx-auto w-full">
+      {/*
+        h1 dung o layout chu khong o tung trang.
+
+        Ba trang admin truoc day khong co h1 nao - chung nhay thang vao h2, nen cay tieu de vo
+        va nguoi dung screen reader khong biet dang o trang nao (ten trang chi nam trong <title>).
+        Dat o day thi khong trang nao quen duoc.
+      */}
+      <h1 class="text-xl font-semibold mb-6">{title}</h1>
       <slot />
     </main>
 
     <footer class="border-t border-[var(--color-line)] px-6 py-4 text-xs text-[var(--color-muted)]">
       Trang quản trị. Số liệu ở đây là trạng thái vận hành, không phải dự báo.
     </footer>
+  <script src="../modules/workspace/shell.ts"></script>
   </body>
 </html>

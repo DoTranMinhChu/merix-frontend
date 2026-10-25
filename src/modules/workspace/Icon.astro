@@ -1,0 +1,6 @@
+﻿---
+interface Props { name: string; class?: string }
+const {name,class:className}=Astro.props;
+const paths:Record<string,string>={grid:'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',chart:'M3 3v18h18 M6 15l4-5 4 3 6-8',layers:'m12 3 10 5-10 5L2 8z M2 12l10 5 10-5 M2 16l10 5 10-5',star:'m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z',search:'M21 21l-5-5 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0',arrow:'M5 19 19 5 M5 5h14v14',info:'M12 11v6 M12 7h.01 M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0',menu:'M4 6h16 M4 12h16 M4 18h16',sun:'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M12 2v2 M12 20v2 M2 12h2 M20 12h2 M5 5l1 1 M18 18l1 1 M5 19l1-1 M18 6l1-1',book:'M4 3h12l4 4v14H4z M8 11h8 M8 15h6 M15 3v5h5',close:'m6 6 12 12 M18 6 6 18'};
+---
+<svg class={className} viewBox="0 0 24 24" aria-hidden="true"><path d={paths[name]??paths.grid}/></svg>

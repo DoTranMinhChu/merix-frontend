@@ -52,14 +52,16 @@ Astro.response.headers.set('Cache-Control', 'no-store');
 ---
 
 <AdminLayout title="Đăng nhập" nav={false}>
+  {/* `h1` do AdminLayout dựng từ `title`, nên trang này không tự đặt thêm — hai h1 là một cây
+      tiêu đề sai, và screen reader đọc cả hai. */}
   <div class="max-w-sm mx-auto">
-    <h1 class="text-xl font-semibold mb-1">Đăng nhập quản trị</h1>
     <p class="text-sm text-[var(--color-muted)] mb-6">
       Khu vực vận hành: trạng thái job, cảnh báo, kết quả thẩm định.
     </p>
 
     {loi && (
       <p
+        id="loi-dang-nhap"
         role="alert"
         class="mb-4 text-sm border border-[var(--color-notup)] text-[var(--color-notup)]
                rounded px-3 py-2"
@@ -80,7 +82,9 @@ Astro.response.headers.set('Cache-Control', 'no-store');
           required
           autocomplete="username"
           autofocus
-          class="w-full bg-[var(--color-panel)] border border-[var(--color-line)] rounded
+          aria-describedby={loi ? "loi-dang-nhap" : undefined}
+          aria-invalid={loi ? "true" : undefined}
+          class="w-full bg-[var(--color-panel)] border border-[var(--color-control)] rounded
                  px-3 py-2 text-sm"
         />
       </label>
@@ -92,7 +96,9 @@ Astro.response.headers.set('Cache-Control', 'no-store');
           name="password"
           required
           autocomplete="current-password"
-          class="w-full bg-[var(--color-panel)] border border-[var(--color-line)] rounded
+          aria-describedby={loi ? "loi-dang-nhap" : undefined}
+          aria-invalid={loi ? "true" : undefined}
+          class="w-full bg-[var(--color-panel)] border border-[var(--color-control)] rounded
                  px-3 py-2 text-sm"
         />
       </label>

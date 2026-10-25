@@ -1,0 +1,12 @@
+﻿---
+import { chartGeometry, money, priceChange, percent, stale, type MarketSeries } from '@core/api/market';
+interface Props {series:MarketSeries|null;symbol:string;error?:string}
+const {series,symbol,error}=Astro.props;const points=series?.prices??[];const geometry=chartGeometry(points);const latest=points.at(-1);const change=priceChange(points);
+---
+<section class="panel chart-panel" aria-labelledby="chart-title" id="chart-panel">
+<div class="panel-heading"><div><h2 id="chart-title">Chuyển động thị trường</h2><p>Giá đóng cửa đã điều chỉnh & khối lượng</p></div></div>
+<div class="chart-toolbar"><div><strong id="chart-symbol">{symbol}</strong><span id="chart-unit">{series?.level==='STOCK'?series.currency:'Điểm chỉ số'}</span></div><div class="segmented" aria-label="Số phiên trên biểu đồ">{[21,63,126,252].map((n,i)=><button type="button" data-period={n} class:list={[i===1&&'active']} aria-pressed={i===1}>{n}P</button>)}</div></div>
+<div id="chart-body"><div class="chart-metric"><span>{money(latest?.close)}</span><span class:list={['change',change!==null&&change<0&&'negative']}>{change===null?'Chưa đủ hai phiên':`${change>0?'+':''}${percent(change)}`}</span><small>{latest?`Phiên ${latest.date} · ${stale(latest.date)?'Dữ liệu đã cũ':'Giá đóng cửa đã điều chỉnh'}`:'Chưa có dữ liệu giá'}</small></div>
+{geometry?<div class="chart-container"><svg viewBox="-5 0 805 270" role="img" aria-label={`Diễn biến giá điều chỉnh ${symbol}`}><title>Giá đóng cửa đã điều chỉnh của {symbol}</title>{[0,1,2,3,4].map(i=><g><line x1="0" x2="720" y1={15+i*52.5} y2={15+i*52.5} class="grid-line"/><text x="735" y={19+i*52.5} class="axis-text">{money(geometry.max-(geometry.max-geometry.min)*i/4)}</text></g>)}<path d={geometry.path} fill="none" stroke="var(--mint)" stroke-width="2.5"/></svg><div class="chart-dates"><span>{points[0]?.date}</span><span>{latest?.date}</span></div></div>:<p class="chart-empty">{error??'Cần ít nhất hai phiên giá để vẽ biểu đồ.'}</p>}</div>
+<p class="data-loading-message" id="chart-message" role="status"></p><div class="chart-footer"><span>Giá điều chỉnh · so sánh hai phiên gần nhất</span><span>21P = 21 phiên giao dịch</span></div>
+</section>

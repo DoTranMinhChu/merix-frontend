@@ -1,0 +1,114 @@
+---
+import '../wireframe/wireframe.css';
+export const prerender = true;
+const indices = [
+  { symbol: 'VNINDEX', name: 'Sở giao dịch TP. Hồ Chí Minh', value: '1.284,32', change: '+0,84%', probability: 62.4, points: '0,44 10,42 20,46 30,30 40,35 50,26 60,31 70,16 80,22 90,9 100,13 110,3' },
+  { symbol: 'HNXINDEX', name: 'Sở giao dịch Hà Nội', value: '229,76', change: '+0,42%', probability: 57.8, points: '0,43 10,34 20,40 30,29 40,34 50,16 60,24 70,20 80,26 90,12 100,17 110,9' },
+  { symbol: 'UPCOMINDEX', name: 'Thị trường UPCoM', value: '94,18', change: '−0,16%', probability: 48.6, points: '0,13 10,17 20,10 30,21 40,15 50,25 60,19 70,31 80,26 90,39 100,32 110,43' },
+];
+const stocks = [
+  { symbol: 'FPT', name: 'CTCP FPT', sector: 'Công nghệ', price: '132.400', change: '+1,46%', p: 68.2, status: 'baseline', spark: '0,27 10,22 20,26 30,17 40,21 50,10 60,14 70,3' },
+  { symbol: 'VCB', name: 'Vietcombank', sector: 'Ngân hàng', price: '91.200', change: '+0,88%', p: 64.7, status: 'baseline', spark: '0,25 10,27 20,18 30,20 40,13 50,17 60,7 70,5' },
+  { symbol: 'HPG', name: 'Tập đoàn Hòa Phát', sector: 'Nguyên vật liệu', price: '27.650', change: '+1,10%', p: 61.5, status: 'unvalidated', spark: '0,25 10,18 20,22 30,11 40,16 50,9 60,13 70,4' },
+  { symbol: 'MBB', name: 'Ngân hàng Quân đội', sector: 'Ngân hàng', price: '24.350', change: '+0,62%', p: 59.3, status: 'baseline', spark: '0,26 10,21 20,24 30,13 40,19 50,15 60,7 70,10' },
+  { symbol: 'VNM', name: 'Vinamilk', sector: 'Tiêu dùng', price: '67.800', change: '−0,44%', p: 46.8, status: 'unvalidated', spark: '0,8 10,12 20,7 30,18 40,14 50,22 60,19 70,28' },
+  { symbol: 'VIC', name: 'Tập đoàn Vingroup', sector: 'Bất động sản', price: '42.150', change: '−0,59%', p: null, status: 'abstain', spark: '0,5 10,12 20,8 30,17 40,13 50,25 60,20 70,29' },
+];
+const sectors = [{name:'Công nghệ',p:65.8,size:'large'}, {name:'Ngân hàng',p:61.2,size:'large'}, {name:'Nguyên vật liệu',p:58.4,size:''}, {name:'Công nghiệp',p:56.1,size:''}, {name:'Tiêu dùng',p:48.9,size:''}, {name:'Bất động sản',p:45.3,size:''}];
+const icons = { grid:'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z', chart:'M3 3v18h18 M6 15l4-5 4 3 6-8', layers:'m12 3 10 5-10 5L2 8z M2 12l10 5 10-5 M2 16l10 5 10-5', star:'m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z', search:'M21 21l-5-5 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0', arrow:'M5 19 19 5 M5 5h14v14', chevron:'m9 5 7 7-7 7', info:'M12 11v6 M12 7h.01 M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0', close:'m6 6 12 12 M18 6 6 18', pulse:'M2 12h4l3-8 5 16 3-8h5', menu:'M4 6h16 M4 12h16 M4 18h16', book:'M4 3h12l4 4v14H4z M8 11h8 M8 15h6 M15 3v5h5', sun:'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M12 2v2 M12 20v2 M2 12h2 M20 12h2 M5 5l1 1 M18 18l1 1 M5 19l1-1 M18 6l1-1' };
+---
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>MERIX — Không gian phân tích · Bản mẫu</title>
+    <meta name="description" content="Bản mẫu tương tác cho không gian phân tích xác suất MERIX. Toàn bộ số liệu là minh họa." />
+  </head>
+  <body>
+    <svg class="svg-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>{Object.entries(icons).map(([id,path])=><symbol id={`i-${id}`} viewBox="0 0 24 24"><path d={path} /></symbol>)}</defs></svg>
+    <a class="skip" href="#main">Tới nội dung chính</a>
+    <aside class="sidebar" aria-label="Điều hướng">
+      <a href="/wireframe" class="brand" aria-label="MERIX trang tổng quan"><span class="brand-mark"><i></i><i></i><i></i></span>MERIX<span class="brand-dot">®</span></a>
+      <div class="workspace"><span class="workspace-icon">M</span><span>Không gian nghiên cứu<small>Personal workspace</small></span><span class="workspace-arrow">⌄</span></div>
+      <p class="nav-label">KHÔNG GIAN PHÂN TÍCH</p>
+      <nav>
+        <button class="nav-item active" data-view="overview" aria-current="page"><svg><use href="#i-grid" /></svg>Tổng quan<span class="active-dot"></span></button>
+        <button class="nav-item" data-view="market"><svg><use href="#i-chart" /></svg>Khám phá thị trường</button>
+        <button class="nav-item" data-view="sectors"><svg><use href="#i-layers" /></svg>Phân tích ngành</button>
+        <button class="nav-item" data-view="watchlist"><svg><use href="#i-star" /></svg>Danh sách theo dõi<span id="watch-count" class="count">2</span></button>
+      </nav>
+      <p class="nav-label secondary-label">NGHIÊN CỨU</p>
+      <button class="nav-item" data-method><svg><use href="#i-pulse" /></svg>Mô hình & kiểm định</button>
+      <button class="nav-item" data-method><svg><use href="#i-book" /></svg>Phương pháp luận</button>
+      <div class="sidebar-bottom">
+        <div class="system-card"><span class="system-orbit"><svg><use href="#i-pulse" /></svg></span><strong>Đằng sau mỗi xác suất<br />là một phương pháp.</strong><p>Khám phá cách MERIX biến dữ liệu thành góc nhìn định lượng.</p><button data-method>Tìm hiểu mô hình <span>↗</span></button></div>
+        <div class="profile"><span class="avatar">N</span><span>Nhà nghiên cứu<small>Phiên trải nghiệm</small></span><button id="theme-toggle" aria-label="Chuyển giao diện sáng hoặc tối" title="Chuyển giao diện sáng / tối"><svg><use href="#i-sun" /></svg></button></div>
+      </div>
+    </aside>
+    <div class="app">
+      <header class="topbar">
+        <button id="menu-toggle" aria-label="Mở điều hướng" aria-expanded="false"><svg><use href="#i-menu" /></svg></button>
+        <div class="breadcrumb">Không gian phân tích <span>/</span> <strong id="breadcrumb-current">Tổng quan</strong></div>
+        <label class="global-search"><svg><use href="#i-search" /></svg><input id="search" type="search" placeholder="Tìm mã cổ phiếu, ngành…" aria-label="Tìm cổ phiếu trong bản mẫu" /><kbd>/</kbd></label>
+        <span class="prototype-label"><span></span> Bản mẫu tương tác</span>
+      </header>
+      <main id="main" tabindex="-1">
+        <div class="page-heading"><div><div class="eyebrow">THỊ TRƯỜNG VIỆT NAM <span>·</span> QUANTITATIVE RESEARCH</div><h1>Một góc nhìn. Nhiều xác suất.</h1><p>Đọc chuyển động thị trường qua lăng kính dữ liệu.</p></div><div class="session"><span class="session-dot"></span>Phiên minh họa<small>21 tháng 10, 2026 <span>UTC+7</span></small></div></div>
+        <div class="demo-note"><svg><use href="#i-info" /></svg><span><strong>Không gian thử nghiệm thiết kế.</strong> Toàn bộ giá, biểu đồ và xác suất bên dưới là dữ liệu minh họa.</span><span class="version">DESIGN EXPLORATION / V.01</span></div>
+        <section class="market-cards" aria-label="Chỉ số thị trường">
+          {indices.map((index,i)=><button class:list={['market-card',i===0&&'selected']} data-index={i} aria-pressed={i===0}>
+            <div class="market-card-top"><span class="index-symbol">{index.symbol}<span class="exchange">{['HOSE','HNX','UPCoM'][i]}</span></span><svg class="diagonal"><use href="#i-arrow" /></svg></div>
+            <div class="market-price"><strong>{index.value}</strong><span class:list={['change',i===2&&'negative']}>{index.change}</span><svg class:list={['spark',i===2&&'negative']} viewBox="0 0 112 50" aria-hidden="true"><polyline points={index.points} /></svg></div>
+            <div class="market-card-bottom"><span>Xác suất tăng · 21 phiên</span><strong class:list={[i===2&&'negative']}>{index.probability.toFixed(1).replace('.',',')}%<span class="tiny-bar" style={`--fill:${index.probability}%`}></span></strong></div>
+          </button>)}
+        </section>
+        <div class="analysis-grid">
+          <section class="panel chart-panel" aria-labelledby="chart-title">
+            <div class="panel-heading"><div><h2 id="chart-title">Chuyển động thị trường</h2><p>Diễn biến chỉ số & khối lượng giao dịch</p></div><span class="chart-unit">DỮ LIỆU MINH HỌA</span></div>
+            <div class="chart-toolbar"><div><strong id="chart-symbol">VNINDEX</strong><span id="chart-exchange">HOSE</span><span class="chart-legend"><i></i>Điểm chỉ số</span></div><div class="segmented" aria-label="Khoảng thời gian biểu đồ">{['1T','3T','6T','1N'].map((period,i)=><button data-period={i} class:list={[i===1&&'active']} aria-pressed={i===1}>{period}</button>)}</div></div>
+            <div class="chart-metric"><span id="chart-value">1.284,32</span><span id="chart-change" class="change">↗ +10,70 (+0,84%)</span><small>điểm · giá đóng cửa minh họa</small></div>
+            <div class="chart-container">
+              <svg id="price-chart" viewBox="0 0 800 270" role="img" aria-label="Biểu đồ diễn biến chỉ số minh họa, không phải dữ liệu thực">
+                <defs><linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#5ce0bd" stop-opacity=".18" /><stop offset="100%" stop-color="#5ce0bd" stop-opacity="0" /></linearGradient></defs>
+                {[35,85,135,185,235].map((y,i)=><g><line x1="0" x2="727" y1={y} y2={y} class="grid-line" /><text x="745" y={y+4} class="axis-text">{['1.300','1.275','1.250','1.225','1.200'][i]}</text></g>)}
+                <g id="volume-bars"></g><path id="chart-area" fill="url(#chart-fill)" /><path id="chart-line" fill="none" stroke="var(--mint)" stroke-width="2.5" stroke-linejoin="round" /><line x1="0" x2="727" y1="66" y2="66" class="price-guide" id="price-guide" /><circle id="chart-dot" r="4" fill="var(--mint)" /><g id="chart-cursor" visibility="hidden"><line y1="20" y2="240" stroke="var(--muted)" stroke-dasharray="4 4" /><circle r="5" fill="var(--mint)" /><rect width="125" height="28" rx="5" fill="var(--ink)" /><text font-size="12" fill="var(--ground)"></text></g>
+              </svg>
+              <div class="chart-dates" id="chart-dates"><span>21 Thg 7</span><span>11 Thg 8</span><span>01 Thg 9</span><span>22 Thg 9</span><span>21 Thg 10</span></div>
+            </div>
+            <div class="chart-footer"><span><i></i> Khối lượng giao dịch</span><span>Rê chuột để khám phá biểu đồ <svg><use href="#i-info" /></svg></span></div>
+          </section>
+          <section class="panel probability-panel" aria-labelledby="prob-title">
+            <div class="panel-heading"><h2 id="prob-title">Lăng kính xác suất</h2><button class="icon-button" data-method aria-label="Giải thích xác suất"><svg><use href="#i-info" /></svg></button></div>
+            <p class="muted">Khả năng tăng sau <strong id="horizon-label">21 phiên</strong></p>
+            <div class="horizon-control" aria-label="Kỳ hạn dự báo">{[1,5,21,63,252].map(h=><button data-horizon={h} class:list={[h===21&&'active']} aria-pressed={h===21}>{h}<small>phiên</small></button>)}</div>
+            <div class="probability-gauge"><svg viewBox="0 0 250 145" aria-hidden="true"><path d="M25 125 A100 100 0 0 1 225 125" class="gauge-track" /><path id="gauge-value" d="M25 125 A100 100 0 0 1 225 125" class="gauge-value" pathLength="100" stroke-dasharray="62.4 100" /><text x="18" y="144">0%</text><text x="209" y="144">100%</text></svg><div><span id="probability">62,4<span>%</span></span><small>Xác suất tăng</small></div></div>
+            <div class="probability-breakdown"><span><i></i>Tăng <strong id="up-value">62,4%</strong></span><span><i></i>Không tăng <strong id="notup-value">37,6%</strong></span></div>
+            <div class="model-note"><span class="status-mark">◈</span><div><strong>Mô hình tham chiếu</strong><p>Chưa chứng minh khả năng dự báo.<br />Xác suất không phải mức độ chắc chắn.</p></div></div>
+            <button class="text-button" data-method>Hiểu cách xác suất được tính <svg><use href="#i-arrow" /></svg></button>
+          </section>
+        </div>
+        <div class="bottom-grid">
+          <section class="panel stock-panel" id="stocks-section" aria-labelledby="stocks-title">
+            <div class="panel-heading"><div><h2 id="stocks-title">Khám phá cổ phiếu</h2><p>Quan sát xác suất, đặt câu hỏi, tìm góc nhìn.</p></div><span class="table-period">21 phiên</span></div>
+            <div class="table-controls"><div class="table-tabs"><button class="active" data-filter="all" aria-pressed="true">Tất cả cổ phiếu <span>6</span></button><button data-filter="watchlist" aria-pressed="false">Đang theo dõi</button></div><label class="sector-select"><span class="sr-only">Lọc theo ngành</span><select id="sector-filter"><option value="">Tất cả ngành</option>{[...new Set(stocks.map(s=>s.sector))].map(s=><option>{s}</option>)}</select></label></div>
+            <div class="table-scroll"><table><caption class="sr-only">Cổ phiếu và xác suất minh họa ở kỳ hạn 21 phiên</caption><thead><tr><th scope="col"><span class="sr-only">Theo dõi</span></th><th scope="col">Tài sản</th><th scope="col" class="numeric">Giá / VND</th><th scope="col">7 phiên</th><th scope="col" class="numeric">XS tăng</th><th scope="col">Trạng thái</th></tr></thead><tbody>{stocks.map((s,i)=><tr data-stock={s.symbol} data-sector={s.sector} data-name={s.name} data-probability={s.p ?? ''}>
+              <td><button class:list={['star-button',i<2&&'saved']} data-star={s.symbol} aria-label={`Theo dõi ${s.symbol}`} aria-pressed={i<2}><svg><use href="#i-star" /></svg></button></td>
+              <th scope="row"><button class="asset-button" data-detail={s.symbol}><span class={`asset-avatar avatar-${i}`}>{s.symbol.slice(0,1)}</span><span>{s.symbol}<small>{s.name}</small></span></button></th>
+              <td class="numeric price-cell">{s.price}<small class:list={['change',s.change.startsWith('−')&&'negative']}>{s.change}</small></td>
+              <td><svg class:list={['table-spark',s.change.startsWith('−')&&'negative']} viewBox="0 0 72 32" aria-hidden="true"><polyline points={s.spark} /></svg></td>
+              <td class="numeric"><strong class:list={['table-probability',s.p!==null&&s.p<50&&'negative']}>{s.p===null?'—':s.p.toFixed(1).replace('.',',')+'%'}</strong>{s.p!==null&&<span class="row-bar" style={`--fill:${s.p}%`}></span>}</td>
+              <td><span class={`model-badge ${s.status}`}><i></i>{s.status==='baseline'?'Tham chiếu':s.status==='abstain'?'Thiếu dữ liệu':'Chưa kiểm định'}</span></td>
+            </tr>)}</tbody></table><p id="empty-state" hidden>Không tìm thấy mã phù hợp. Hãy đổi từ khóa hoặc bộ lọc.</p></div>
+            <div class="table-footer"><span id="results-count">Hiển thị 6 tài sản minh họa</span><span>Nhấn vào mã để xem chi tiết <span>↗</span></span></div>
+          </section>
+          <section class="panel sector-panel" id="sectors-section" aria-labelledby="sectors-title"><div class="panel-heading"><div><h2 id="sectors-title">Nhịp đập ngành</h2><p>Xác suất tăng · 21 phiên</p></div><svg class="section-icon"><use href="#i-layers" /></svg></div><div class="sector-map">{sectors.map(s=><button class:list={['sector-tile',s.size,s.p<50&&'cool']} data-sector-tile={s.name} style={`--tile-alpha:${(s.p-35)/100}`}><span>{s.name}</span><strong>{s.p.toFixed(1).replace('.',',')}<small>%</small></strong><svg><use href="#i-arrow" /></svg></button>)}</div><div class="map-legend"><span>Thấp hơn</span><div>{Array.from({length:7},(_,i)=><i style={`--level:${i}`} />)}</div><span>Cao hơn</span></div><p class="sector-caption">Chọn một ngành để lọc danh sách cổ phiếu.</p></section>
+        </div>
+        <footer class="page-footer"><span><span class="footer-mark">M</span> MERIX <span>·</span> Probability, with perspective.</span><p>Thông tin nghiên cứu, không phải tư vấn đầu tư.</p><span class="footer-version">Prototype v.01</span></footer>
+      </main>
+    </div>
+    <dialog id="detail-dialog"><button class="dialog-close icon-button" aria-label="Đóng hộp thoại"><svg><use href="#i-close" /></svg></button><span class="dialog-tag">MERIX / RESEARCH LAB</span><h2 id="dialog-title">Phương pháp luận</h2><div id="dialog-content"></div><button class="dialog-done">Đã hiểu</button></dialog>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <script src="../wireframe/wireframe.ts"></script>
+  </body>
+</html>

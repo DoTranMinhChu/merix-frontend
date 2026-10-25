@@ -1,15 +1,92 @@
 @import "tailwindcss";
 
 @theme {
-  --color-surface: #070d12;
-  --color-panel: #0d1a21;
-  --color-line: #20323a;
-  --color-ink: #eaf5f4;
-  --color-muted: #8299a2;
-  --color-up: #56e1af;
-  --color-notup: #ff7880;
-  --color-warn: #f0c16e;
+  --color-surface: #0d1117;
+  --color-panel: #141b24;
+  --color-line: #25303c;
+  --color-ink: #edf1f6;
+  --color-muted: #a3b2c3;
+  --color-up: #69e6be;
+  --color-notup: #ed919e;
+  --color-warn: #d9bd82;
+
+  /*
+   * Viền của THÀNH PHẦN TƯƠNG TÁC — input, select, nút viền.
+   *
+   * Khác `--color-line` (viền trang trí, 1,33:1 trên panel) vì WCAG 1.4.11 đòi **3:1** cho
+   * ranh giới của một thành phần giao diện: với một ô nhập, cái viền là thứ duy nhất cho biết
+   * ô đó ở đâu. Đo được: `#718590` cho 3,39:1 trên panel và 3,74:1 trên surface.
+   *
+   * `--color-line` giữ nguyên cho đường kẻ bảng và vách ngăn — chúng trang trí, bỏ đi vẫn đọc
+   * được nội dung, nên 3:1 không áp dụng.
+   */
+  --color-control: #718590;
 }
 
-:root { color-scheme: dark; }
-body { background: var(--color-surface); color: var(--color-ink); }
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+/*
+ * Vành focus thấy được trên nền tối.
+ *
+ * Mặc định của trình duyệt là một vành mảnh màu hệ thống; trên nền `#0d1117` nó gần như vô hình,
+ * nên người điều hướng bằng Tab mất dấu vị trí. `:focus-visible` chỉ hiện khi điều hướng bằng
+ * bàn phím, nên nó không làm bẩn giao diện khi bấm chuột.
+ *
+ * Dùng `outline` chứ không `box-shadow`: `outline` không bị `overflow: hidden` của phần tử cha
+ * cắt mất, và nó vẫn hiện trong chế độ tương phản cao của hệ điều hành.
+ */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--color-up);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Bỏ vành khi bấm chuột, nhưng KHÔNG bỏ `:focus-visible` ở trên. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus:not(:focus-visible) {
+  outline: none;
+}
+
+/*
+ * Liên kết bỏ qua điều hướng.
+ *
+ * Nằm ngoài khung nhìn tới khi được focus. Không dùng `display: none` — phần tử ẩn kiểu đó
+ * không nhận được focus, nên liên kết sẽ không bao giờ dùng được.
+ */
+.skip-link {
+  position: absolute;
+  left: 0.5rem;
+  top: -3rem;
+  z-index: 50;
+  padding: 0.5rem 1rem;
+  background: var(--color-up);
+  color: var(--color-surface);
+  font-weight: 600;
+  border-radius: 0 0 0.375rem 0.375rem;
+  transition: top 120ms ease-out;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* Tôn trọng lựa chọn giảm hiệu ứng của hệ điều hành. */
+@media (prefers-reduced-motion: reduce) {
+  .skip-link {
+    transition: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

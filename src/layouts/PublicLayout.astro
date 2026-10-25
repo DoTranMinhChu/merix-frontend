@@ -1,40 +1,28 @@
----
+﻿---
 import '@core/styles/global.css';
-import { PUBLIC_APP_NAME } from 'astro:env/client';
-
-interface Props {
-  title: string;
-  description?: string;
-}
-const { title, description } = Astro.props;
-
-// Disclaimer o day la ban du phong cho cac trang khong goi API.
-// Trang co du bao PHAI dung chuoi tu payload API (truong `disclaimer`), vi do moi la nguon
-// bat buoc theo hop dong — xem shared/contracts/openapi.yaml.
-const FALLBACK_DISCLAIMER = 'Thông tin nghiên cứu, không phải tư vấn đầu tư.';
+import '@core/styles/workspace.css';
+import Meta from '@modules/workspace/Meta.astro';
+import Icon from '@modules/workspace/Icon.astro';
+interface Props {title:string;description?:string}
+const {title,description}=Astro.props;
+const view=Astro.url.searchParams.get('view');
+const links=[{href:'/',label:'Tổng quan',icon:'grid',active:Astro.url.pathname==='/'&&!view},{href:'/#stocks-section',label:'Khám phá thị trường',icon:'chart'},{href:'/#sectors-section',label:'Phân tích ngành',icon:'layers'},{href:'/?view=watchlist#stocks-section',label:'Danh sách theo dõi',icon:'star',active:view==='watchlist'}];
 ---
-
-<!doctype html>
-<html lang="vi">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title} · {PUBLIC_APP_NAME}</title>
-    {description && <meta name="description" content={description} />}
-  </head>
-  <body class="min-h-screen flex flex-col">
-    <header class="border-b border-[var(--color-line)] px-6 py-4">
-      <a href="/" class="font-bold tracking-wide">{PUBLIC_APP_NAME}</a>
-      <span class="ml-3 text-xs text-[var(--color-muted)]">Xác suất tăng / không tăng</span>
-    </header>
-
-    <main class="flex-1 px-6 py-8 max-w-5xl mx-auto w-full">
-      <slot />
-    </main>
-
-    <!-- Disclaimer hien tren MOI trang. Rang buoc tu de bai, muc 1. -->
-    <footer class="border-t border-[var(--color-line)] px-6 py-4 text-xs text-[var(--color-muted)]">
-      <slot name="disclaimer">{FALLBACK_DISCLAIMER}</slot>
-    </footer>
-  </body>
-</html>
+<!doctype html><html lang="vi"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><Meta title={title} description={description} noindex={(Astro.response.status??200)>=400||!!Astro.url.search}/></head>
+<body class="workspace-app">
+<a href="#noi-dung" class="skip-link">Bỏ qua, tới nội dung chính</a>
+<aside class="sidebar" id="app-sidebar" aria-label="Điều hướng">
+ <a href="/" class="brand production-brand" aria-label="MERIX — Tổng quan"><img class="logo-dark" src="/brand/merix-logo-on-dark.svg" alt="MERIX" width="172" height="48"/><img class="logo-light" src="/brand/merix-logo-on-light.svg" alt="MERIX" width="172" height="48"/></a>
+ <div class="workspace"><span class="workspace-icon">M</span><span>Không gian nghiên cứu<small>Thị trường Việt Nam</small></span></div>
+ <p class="nav-label">KHÔNG GIAN PHÂN TÍCH</p>
+ <nav aria-label="Điều hướng chính">{links.map(l=><a class:list={['nav-item',l.active&&'active']} href={l.href} aria-current={l.active?'page':undefined}><Icon name={l.icon}/>{l.label}{l.icon==='star'&&<span class="count" data-watch-count>0</span>}</a>)}</nav>
+ <p class="nav-label secondary-label">NGHIÊN CỨU</p>
+ <a class:list={['nav-item',Astro.url.pathname==='/methodology'&&'active']} href="/methodology"><Icon name="book"/>Phương pháp luận</a>
+ <a class="nav-item" href="/admin"><Icon name="layers"/>Quản trị hệ thống</a>
+ <div class="sidebar-bottom"><div class="system-card"><strong>Đằng sau mỗi xác suất<br/>là một phương pháp.</strong><p>Tìm hiểu mô hình, dữ liệu và giới hạn của kết quả nghiên cứu.</p><a href="/methodology" class="text-button">Tìm hiểu mô hình <span>↗</span></a></div><div class="profile"><span class="avatar">M</span><span>Không gian cá nhân<small>Theo dõi trên thiết bị này</small></span><button data-theme-toggle aria-label="Chuyển giao diện sáng hoặc tối" title="Chuyển giao diện sáng / tối"><Icon name="sun"/></button></div></div>
+</aside>
+<div class="app"><header class="topbar"><button id="menu-toggle" aria-controls="app-sidebar" aria-expanded="false" aria-label="Mở điều hướng"><Icon name="menu"/></button><div class="breadcrumb">Không gian phân tích <span>/</span><strong>{title}</strong></div><form class="global-search" method="get" action="/" role="search"><Icon name="search"/><input id="global-search" name="search" type="search" placeholder="Tìm mã cổ phiếu, tên công ty…" aria-label="Tìm cổ phiếu" maxlength="120" value={Astro.url.searchParams.get('search')??''}/><button type="submit" aria-label="Tìm kiếm">↵</button><kbd>/</kbd></form></header>
+<main id="noi-dung" tabindex="-1"><slot/><footer class="page-footer"><span><img src="/brand/merix-mark-mint.svg" width="19" height="19" alt=""/>MERIX · Probability, with perspective.</span><p><slot name="disclaimer">Thông tin nghiên cứu, không phải tư vấn đầu tư.</slot></p></footer></main></div>
+<div id="app-toast" role="status" aria-live="polite"></div>
+<script src="../modules/workspace/shell.ts"></script>
+</body></html>

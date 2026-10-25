@@ -42,6 +42,11 @@ export interface AssetRef {
 
 export interface HorizonForecast {
     horizonSessions: number;
+    /** Per-horizon evidence; optional while older API servers are upgraded. */
+    asOf?: string;
+    dataThrough?: string;
+    modelVersion?: string;
+    validationStatus?: ValidationStatus;
     predictionStatus: PredictionStatus;
     /** `null` khi khong phat duoc. KHONG BAO GIO la 0.5 de thay cho "khong biet". */
     probabilityUp: number | null;

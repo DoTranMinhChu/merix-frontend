@@ -1,0 +1,8 @@
+﻿---
+import type {MarketAsset} from '@core/api/market';
+import {money,percent,priceChange,stale} from '@core/api/market';
+import {VALIDATION_LABELS,ABSTAIN_LABELS} from '@core/api/types';
+interface Props {items:MarketAsset[]}
+const {items}=Astro.props;
+---
+{items.map(a=>{const change=priceChange(a.prices);const last=a.prices.at(-1);const f=a.forecast;return <tr data-stock={a.symbol}><td><button class="star-button" data-star={a.symbol} aria-label={`Theo dõi ${a.symbol}`} aria-pressed="false">☆</button></td><th scope="row"><a class="asset-button" href={`/asset/${encodeURIComponent(a.symbol)}`}><span class="asset-avatar">{a.symbol[0]}</span><span>{a.symbol}<small>{a.name}</small></span></a></th><td class="numeric price-cell">{money(last?.close)}<small class:list={['change',change!==null&&change<0&&'negative']}>{change===null?'—':`${change>0?'+':''}${percent(change)}`}</small><span class="table-status-date">{last?.date??'Chưa có giá'}</span></td><td class="numeric"><strong class:list={['table-probability',f?.probabilityUp!=null&&f.probabilityUp<.5&&'negative']}>{percent(f?.probabilityUp)}</strong></td><td><span class="stock-filter-label">{a.exchange??'—'}</span></td><td><span class="model-badge">{f?VALIDATION_LABELS[f.validationStatus]:'Chưa có dự báo'}</span>{f?.probabilityUp==null&&<small class="table-status-date">{f?.abstainReason?ABSTAIN_LABELS[f.abstainReason]:'Chưa đủ kết quả'}</small>}{f&&(stale(f.dataThrough)||f.predictionStatus==='STALE')&&<small class="table-status-date negative">Dự báo cũ · {f.dataThrough}</small>}{last&&stale(last.date)&&<small class="table-status-date negative">Giá đã cũ</small>}</td></tr>;})}

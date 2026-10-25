@@ -1,0 +1,18 @@
+﻿---
+import { PUBLIC_APP_NAME } from 'astro:env/client';
+interface Props { title:string; description?:string; noindex?:boolean }
+const {title,description='Nghiên cứu xác suất tăng và không tăng của thị trường, ngành và cổ phiếu Việt Nam.',noindex=false}=Astro.props;
+const configured=import.meta.env.PUBLIC_SITE_URL as string|undefined;
+let site:URL|null=null;try{if(configured){const parsed=new URL(configured);if(['https:','http:'].includes(parsed.protocol))site=parsed;}}catch{/* Omit absolute metadata until deployment origin is configured. */}
+const canonical=site?new URL(Astro.url.pathname,site).href:null;
+---
+<title>{title} · {PUBLIC_APP_NAME}</title>
+<meta name="description" content={description}/>
+{noindex&&<meta name="robots" content="noindex,nofollow"/>}
+<link rel="icon" href="/brand/favicon.ico" sizes="16x16 32x32 48x48"/>
+<link rel="icon" href="/brand/favicon.svg" type="image/svg+xml" sizes="any"/>
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" sizes="180x180"/>
+<meta name="theme-color" content="#0D1117"/>
+<meta property="og:type" content="website"/><meta property="og:site_name" content={PUBLIC_APP_NAME}/><meta property="og:locale" content="vi_VN"/>
+<meta property="og:title" content={`${title} · ${PUBLIC_APP_NAME}`}/><meta property="og:description" content={description}/>
+{canonical&&<><link rel="canonical" href={canonical}/><meta property="og:url" content={canonical}/><meta property="og:image" content={new URL('/brand/merix-social.png',site!).href}/><meta property="og:image:width" content="1200"/><meta property="og:image:height" content="630"/><meta property="og:image:alt" content="MERIX — Một góc nhìn. Nhiều xác suất."/></>}

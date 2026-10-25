@@ -1,158 +1,31 @@
----
-/**
- * Trang chu: tinh trang du lieu + ba chi so thi truong.
- *
- * # Trang nay khong bao gio lap cho trong bang so lieu gia
- *
- * Backend khong voi toi duoc, hoac chua co du bao nao, deu duoc noi thang. Mot trang hien "50%"
- * khi khong co du lieu la noi sai — va 50% con la mot du bao CO NOI DUNG (can bang that), nen no
- * la cach noi sai te nhat.
- */
+﻿---
 import PublicLayout from '@layouts/PublicLayout.astro';
-import { apiGet } from '@core/api/client';
-import type { DataStatus, ForecastResponse } from '@core/api/types';
-import { STALE_LAG_DAYS, formatProbability } from '@core/api/types';
-
-const CHI_SO = ['VNINDEX', 'HNXINDEX', 'UPCOMINDEX'] as const;
-
-const [status, ...chiSo] = await Promise.all([
-    apiGet<DataStatus>('/api/v1/data-status'),
-    ...CHI_SO.map((s) => apiGet<ForecastResponse>(`/api/v1/forecasts?symbol=${s}`)),
+import {apiGet} from '@core/api/client';
+import type {DataStatus,ForecastResponse} from '@core/api/types';
+import {VALIDATION_LABELS} from '@core/api/types';
+import {money,percent,priceChange,stale,type MarketSnapshot,type MarketSeries,type WorkspaceData} from '@core/api/market';
+import PriceChart from '@modules/workspace/PriceChart.astro';
+import Probability from '@modules/workspace/Probability.astro';
+import StockRows from '@modules/workspace/StockRows.astro';
+const search=(Astro.url.searchParams.get('search')??'').trim().slice(0,120);
+const sector=(Astro.url.searchParams.get('sector')??'').trim().slice(0,20);
+const params=new URLSearchParams({level:'STOCK',limit:'24'});if(search)params.set('search',search);if(sector)params.set('sector',sector);
+const [status,markets,sectors,stocks,series,forecast]=await Promise.all([
+ apiGet<DataStatus>('/api/v1/data-status'),apiGet<MarketSnapshot>('/api/v1/market-snapshot?level=MARKET&limit=100'),apiGet<MarketSnapshot>('/api/v1/market-snapshot?level=SECTOR&limit=100'),apiGet<MarketSnapshot>(`/api/v1/market-snapshot?${params}`),apiGet<MarketSeries>('/api/v1/market-series?symbol=VNINDEX&limit=63'),apiGet<ForecastResponse>('/api/v1/forecasts?symbol=VNINDEX'),
 ]);
-
-const cu =
-    status.kind === 'ok' &&
-    status.data.lagDays !== null &&
-    status.data.lagDays > STALE_LAG_DAYS;
-
-const disclaimer = status.kind === 'ok' ? status.data.disclaimer : null;
+const state:WorkspaceData={markets:markets.kind==='ok'?markets.data.items:[],sectors:sectors.kind==='ok'?sectors.data.items:[],stocks:stocks.kind==='ok'?stocks.data:null,series:series.kind==='ok'?series.data:null,forecast:forecast.kind==='ok'?forecast.data:null,selected:'VNINDEX',errors:[],search,sector,stockError:stocks.kind==='error'?stocks.message:null};
+const disclaimer=status.kind==='ok'?status.data.disclaimer:forecast.kind==='ok'?forecast.data.disclaimer:'Thông tin nghiên cứu, không phải tư vấn đầu tư.';
 ---
-
-<PublicLayout
-  title="Tổng quan"
-  description="Dự báo xác suất tăng / không tăng cho thị trường, ngành và cổ phiếu Việt Nam."
->
-  <h1 class="text-2xl font-bold mb-2">Xác suất tăng / không tăng</h1>
-  <p class="text-[var(--color-muted)] mb-8 text-sm">
-    Thị trường, ngành và cổ phiếu Việt Nam ở 5 kỳ hạn: 1, 5, 21, 63 và 252 phiên.
-    MERIX chỉ phát xác suất — không có khuyến nghị mua hay bán.
-  </p>
-
-  {status.kind === 'ok' ? (
-    <section class="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 mb-8">
-      <h2 class="text-sm font-semibold mb-3">Tình trạng dữ liệu</h2>
-      <dl class="text-sm grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6">
-        <dt class="text-[var(--color-muted)]">Phiên mới nhất</dt>
-        <dd class="tabular-nums">{status.data.latestTradingDate ?? 'chưa có'}</dd>
-
-        <dt class="text-[var(--color-muted)]">Trễ so với hôm nay</dt>
-        <dd class:list={['tabular-nums', cu ? 'text-[var(--color-warn)] font-semibold' : '']}>
-          {status.data.lagDays === null ? '—' : `${status.data.lagDays} ngày`}
-        </dd>
-
-        <dt class="text-[var(--color-muted)]">Tài sản có giá</dt>
-        <dd class="tabular-nums">{status.data.assetsWithPrices.toLocaleString('vi-VN')}</dd>
-
-        <dt class="text-[var(--color-muted)]">Dòng giá</dt>
-        <dd class="tabular-nums">{status.data.priceRows.toLocaleString('vi-VN')}</dd>
-
-        <dt class="text-[var(--color-muted)]">Dự báo phát được</dt>
-        <dd class="tabular-nums">{status.data.liveForecasts.toLocaleString('vi-VN')}</dd>
-
-        <dt class="text-[var(--color-muted)]">Dự báo không phát được</dt>
-        <dd class="tabular-nums">{status.data.abstainedForecasts.toLocaleString('vi-VN')}</dd>
-
-        <dt class="text-[var(--color-muted)]">Sự kiện doanh nghiệp</dt>
-        <dd class="tabular-nums">{status.data.corporateActionCoverage} mã</dd>
-
-        <dt class="text-[var(--color-muted)]">Phiên bản tập feature</dt>
-        <dd><code class="text-xs">{status.data.featureSetVersion}</code></dd>
-      </dl>
-
-      {cu && (
-        <p class="mt-4 text-sm text-[var(--color-warn)]">
-          Dữ liệu đã cũ hơn {STALE_LAG_DAYS} ngày. Các xác suất bên dưới được tính trên dữ liệu
-          tới {status.data.latestTradingDate}, không phải hôm nay.
-        </p>
-      )}
-    </section>
-  ) : (
-    <section class="rounded-xl border border-[var(--color-warn)] bg-[var(--color-panel)] p-5 mb-8">
-      <h2 class="text-sm font-semibold mb-2 text-[var(--color-warn)]">Không lấy được dữ liệu</h2>
-      <p class="text-sm text-[var(--color-muted)]">
-        Backend trả về lỗi <code class="text-xs">{status.code}</code>: {status.message}
-      </p>
-      <p class="text-sm text-[var(--color-muted)] mt-2">
-        Trang này <strong>không</strong> hiển thị số liệu giả để lấp chỗ trống.
-      </p>
-    </section>
-  )}
-
-  <h2 class="text-lg font-semibold mb-4">Chỉ số thị trường</h2>
-
-  <div class="grid gap-4 sm:grid-cols-3">
-    {chiSo.map((r, i) => {
-      const symbol = CHI_SO[i];
-      if (r.kind !== 'ok') {
-        return (
-          <article class="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4">
-            <h3 class="font-semibold">{symbol}</h3>
-            <p class="text-sm text-[var(--color-muted)] mt-2">
-              Chưa có dự báo ({r.code}).
-            </p>
-          </article>
-        );
-      }
-      const d = r.data;
-      // Ky han 21 phien la moc dai dien cho trang tong quan: du dai de co noi dung, du ngan de
-      // con kiem chung duoc. Khong co thi lay ky han ngan nhat phat duoc.
-      const chinh =
-        d.horizons.find((h) => h.horizonSessions === 21 && h.probabilityUp !== null) ??
-        d.horizons.find((h) => h.probabilityUp !== null);
-      const p = formatProbability(chinh?.probabilityUp ?? null);
-      return (
-        <a
-          href={`/asset/${encodeURIComponent(d.asset.symbol)}`}
-          class="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 block hover:border-[var(--color-accent)] transition-colors"
-        >
-          <h3 class="font-semibold">{d.asset.symbol}</h3>
-          <p class="text-xs text-[var(--color-muted)] mb-3">{d.asset.name}</p>
-          {p !== null && chinh ? (
-            <>
-              <p class="text-3xl font-bold tabular-nums">{p}</p>
-              <p class="text-xs text-[var(--color-muted)] mt-1">
-                xác suất tăng sau {chinh.horizonSessions} phiên
-              </p>
-            </>
-          ) : (
-            <p class="text-sm text-[var(--color-muted)]">
-              Không phát dự báo ở kỳ hạn nào.
-            </p>
-          )}
-        </a>
-      );
-    })}
-  </div>
-
-  <h2 class="text-lg font-semibold mt-8 mb-3">Tra cứu mã</h2>
-  <form method="get" action="/asset" class="flex gap-2 flex-wrap">
-    <label class="sr-only" for="symbol">Mã cần xem</label>
-    <input
-      id="symbol"
-      name="symbol"
-      type="text"
-      required
-      placeholder="VNINDEX · ACB · ICB2300"
-      class="flex-1 min-w-48 rounded-lg border border-[var(--color-line)] bg-transparent px-3 py-2 text-sm"
-    />
-    <button
-      type="submit"
-      class="rounded-lg border border-[var(--color-accent)] px-4 py-2 text-sm font-medium"
-      >Xem</button
-    >
-  </form>
-
-  <p slot="disclaimer">
-    {disclaimer ?? 'Thông tin nghiên cứu, không phải tư vấn đầu tư.'}
-  </p>
+<PublicLayout title="Tổng quan" description="Không gian nghiên cứu định lượng thị trường Việt Nam: diễn biến giá, xác suất theo kỳ hạn và tình trạng kiểm chứng.">
+<div id="workspace-data" data-initial={JSON.stringify(state)}>
+<div class="page-heading public-intro"><div><div class="eyebrow">THỊ TRƯỜNG VIỆT NAM · QUANTITATIVE RESEARCH</div><h1>Một góc nhìn. Nhiều xác suất.</h1><p>Đọc chuyển động thị trường qua lăng kính dữ liệu.</p></div><div class="session">Phiên dữ liệu gần nhất<small>{status.kind==='ok'?status.data.latestTradingDate??'Chưa có':'Không kết nối'}</small></div></div>
+{status.kind==='ok'?<div class:list={['data-notice',stale(status.data.latestTradingDate)&&'warning']}><strong>{stale(status.data.latestTradingDate)?'Dữ liệu đã cũ.':'Tình trạng dữ liệu'}</strong> Giá tới {status.data.latestTradingDate??'chưa có'} · {status.data.assetsWithPrices.toLocaleString('vi-VN')} tài sản có giá · Không phải bảng giá thời gian thực. {status.data.lagDays!==null&&`Trễ ${status.data.lagDays} ngày lịch.`}</div>:<div class="data-notice error" role="status">Không đọc được trạng thái dữ liệu: {status.message}</div>}
+<noscript><p class="noscript-note">Bạn đang xem dữ liệu được dựng từ máy chủ. Bật JavaScript để đổi biểu đồ, kỳ hạn và lưu danh sách theo dõi. Có thể tìm tài sản bằng ô tìm kiếm và xem đầy đủ kỳ hạn trong trang chi tiết.</p></noscript>
+<section class="market-cards" aria-label="Chỉ số thị trường">{state.markets.map(a=>{const c=priceChange(a.prices);return <button class:list={['market-card',a.symbol==='VNINDEX'&&'selected']} data-market={a.symbol} aria-pressed={a.symbol==='VNINDEX'}><div class="market-card-top"><span class="index-symbol">{a.symbol}<span class="exchange">{a.exchange??'Chỉ số'}</span></span><span>↗</span></div><div class="market-price"><strong>{money(a.prices.at(-1)?.close)}</strong><span class:list={['change',c!==null&&c<0&&'negative']}>{c===null?'—':`${c>0?'+':''}${percent(c)}`}</span></div><div class="market-card-bottom"><span>Xác suất tăng · 21 phiên</span><strong>{percent(a.forecast?.probabilityUp)}</strong></div><p class="market-state">{a.forecast?VALIDATION_LABELS[a.forecast.validationStatus]:'Chưa có dự báo'} · {a.prices.at(-1)?.date??'Chưa có giá'}{stale(a.prices.at(-1)?.date)&&' · Giá cũ'}</p></button>;})}</section>
+{markets.kind==='error'&&<p class="data-notice error">Không tải được chỉ số thị trường: {markets.message}</p>}
+<div class="analysis-grid"><PriceChart series={state.series} symbol="VNINDEX" error={series.kind==='error'?series.message:undefined}/><Probability forecast={state.forecast} error={forecast.kind==='error'?forecast.message:undefined}/></div>
+<div class="bottom-grid"><section class="panel stock-panel" id="stocks-section" aria-labelledby="stocks-title"><div class="panel-heading"><div><h2 id="stocks-title">Khám phá cổ phiếu</h2><p>Giá điều chỉnh · xác suất từ mô hình equal_ensemble</p></div><span class="table-period">21 phiên</span></div><div class="table-controls"><div class="table-tabs"><button data-filter="all" class="active" aria-pressed="true">Tất cả cổ phiếu</button><button data-filter="watchlist" aria-pressed="false">Đang theo dõi</button></div><label class="sector-select"><span class="sr-only">Lọc theo ngành</span><select id="sector-filter"><option value="">Tất cả ngành</option>{state.sectors.map(s=><option value={s.sector??s.symbol.replace(/^ICB/,'')} selected={sector===(s.sector??s.symbol.replace(/^ICB/,''))}>{s.name}</option>)}</select></label></div><p class="data-loading-message" id="stocks-message" role="status">{search&&`Kết quả cho “${search}”`}</p><div class="table-scroll"><table><caption class="sr-only">Cổ phiếu, giá điều chỉnh, xác suất tăng sau 21 phiên và trạng thái kiểm chứng</caption><thead><tr><th scope="col"><span class="sr-only">Theo dõi</span></th><th scope="col">Tài sản</th><th scope="col" class="numeric">Giá / VND</th><th scope="col" class="numeric">XS tăng</th><th scope="col">Sàn</th><th scope="col">Trạng thái</th></tr></thead><tbody id="stocks-body"><StockRows items={state.stocks?.items??[]}/></tbody></table><p id="empty-state" hidden={!!state.stocks?.items.length}>{state.stockError??'Không có tài sản khớp bộ lọc.'}</p></div><div class="table-footer"><span id="results-count">Hiển thị {state.stocks?.items.length??0} tài sản</span><button id="load-more" class="load-more" hidden={!state.stocks?.nextCursor}>Xem thêm</button></div><p class="sector-caption">Danh sách theo dõi được lưu trên trình duyệt này, tối đa 100 mã.</p></section>
+<section class="panel sector-panel" id="sectors-section" aria-labelledby="sectors-title"><div class="panel-heading"><div><h2 id="sectors-title">Nhịp đập ngành</h2><p>Xác suất tăng · 21 phiên · equal_ensemble</p></div></div><div class="sector-map">{state.sectors.map(s=><button class:list={['sector-tile',s.forecast?.probabilityUp==null&&'empty',(s.forecast?.probabilityUp??1)<.5&&'cool']} data-sector={s.sector??s.symbol.replace(/^ICB/,'')} style={`--tile-alpha:${s.forecast?.probabilityUp==null?.08:.1+s.forecast.probabilityUp*.25}`}><span>{s.name}</span><strong>{percent(s.forecast?.probabilityUp)}</strong><small class="sector-validity">{s.forecast?VALIDATION_LABELS[s.forecast.validationStatus]:'Chưa có dự báo'}{s.forecast&&stale(s.forecast.dataThrough)&&' · Dữ liệu cũ'}</small></button>)}</div>{sectors.kind==='error'&&<p class="panel-empty">Không tải được dữ liệu ngành: {sectors.message}</p>}<p class="sector-caption">Chọn ngành để lọc cổ phiếu. Xác suất không phải khuyến nghị đầu tư.</p></section></div>
+{status.kind==='ok'&&<dl class="data-stats"><div><dt>Dòng giá đã lưu</dt><dd>{status.data.priceRows.toLocaleString('vi-VN')}</dd></div><div><dt>Bản ghi có xác suất</dt><dd>{status.data.liveForecasts.toLocaleString('vi-VN')}</dd></div><div><dt>Bản ghi không phát dự báo</dt><dd>{status.data.abstainedForecasts.toLocaleString('vi-VN')}</dd></div><div><dt>Bao phủ sự kiện doanh nghiệp</dt><dd>{status.data.corporateActionCoverage}</dd></div></dl>}
+</div><p slot="disclaimer">{disclaimer}</p><script src="../modules/workspace/dashboard.ts"></script>
 </PublicLayout>
