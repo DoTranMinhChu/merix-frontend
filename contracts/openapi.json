@@ -4066,6 +4066,8 @@
           "periodFrom",
           "periodTo",
           "nForecasts",
+          "trialsBefore",
+          "ciAdjusted",
           "createdAt"
         ],
         "properties": {
@@ -4111,6 +4113,10 @@
             ],
             "format": "double"
           },
+          "ciAdjusted": {
+            "type": "boolean",
+            "description": "Khoảng trên dòng này đã qua hiệu chỉnh Holm theo `trials_before` chưa."
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -4142,7 +4148,8 @@
           },
           "nForecasts": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "description": "Số dự báo **thô** đã chấm, chưa ghép cặp với baseline.\n\n**Không phải bằng chứng.** 1.700 mã dự báo trong cùng một phiên chia nhau một cú sốc\nthị trường, nên con số này lớn hơn lượng bằng chứng thật hàng nghìn lần. Nó ở lại vì\nđúng một việc: nó là con số mà ngưỡng `NOT_VALIDATED` so sánh. Đọc lượng bằng chứng ở\n[`Model::so_phien_doc_lap`]."
           },
           "notes": {
             "type": [
@@ -4157,6 +4164,19 @@
           "periodTo": {
             "type": "string",
             "format": "date"
+          },
+          "soPhienDocLap": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Mẫu số THẬT của khoảng tin cậy: số phiên độc lập (`S/h`). `None` = không đo được."
+          },
+          "trialsBefore": {
+            "type": "integer",
+            "format": "int32",
+            "description": "`m` của phép hiệu chỉnh đa phép thử: số cấu hình đã thử trên cùng ô, đếm ngay trước\nkhi kết luận."
           },
           "validationRunId": {
             "type": "integer",
