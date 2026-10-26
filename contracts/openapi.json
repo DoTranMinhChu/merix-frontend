@@ -4068,6 +4068,7 @@
           "nForecasts",
           "trialsBefore",
           "ciAdjusted",
+          "oQuyetDinh",
           "createdAt"
         ],
         "properties": {
@@ -4115,7 +4116,7 @@
           },
           "ciAdjusted": {
             "type": "boolean",
-            "description": "Khoảng trên dòng này đã qua hiệu chỉnh Holm theo `trials_before` chưa."
+            "description": "Khoảng trên dòng này đã BỊ NỚI RA so với khoảng thô chưa. Rỗng nghĩa là phép hiệu\nchỉnh đã chạy và không nới gì, hoặc không đo được khoảng nào."
           },
           "createdAt": {
             "type": "string",
@@ -4149,13 +4150,17 @@
           "nForecasts": {
             "type": "integer",
             "format": "int32",
-            "description": "Số dự báo **thô** đã chấm, chưa ghép cặp với baseline.\n\n**Không phải bằng chứng.** 1.700 mã dự báo trong cùng một phiên chia nhau một cú sốc\nthị trường, nên con số này lớn hơn lượng bằng chứng thật hàng nghìn lần. Nó ở lại vì\nđúng một việc: nó là con số mà ngưỡng `NOT_VALIDATED` so sánh. Đọc lượng bằng chứng ở\n[`Model::so_phien_doc_lap`]."
+            "description": "Số dự báo thô đã chấm, CHƯA ghép cặp với baseline. Không phải bằng chứng: 1.700 mã\ndự báo trong cùng một phiên chia nhau một cú sốc thị trường, nên con số này lớn hơn\nlượng bằng chứng thật hàng nghìn lần. Nó chỉ dùng cho đúng một việc — nó là con số mà\nngưỡng NOT_VALIDATED so sánh. Lượng bằng chứng nằm ở soPhienDocLap."
           },
           "notes": {
             "type": [
               "string",
               "null"
             ]
+          },
+          "oQuyetDinh": {
+            "type": "boolean",
+            "description": "Ô của dòng này có nằm trong tập quyết định đăng ký trước không. Rỗng = thăm dò: con số\nvẫn dùng được, nhưng chọn chính nó để kết luận là chọn sau khi đã nhìn kết quả."
           },
           "periodFrom": {
             "type": "string",
@@ -4171,12 +4176,12 @@
               "null"
             ],
             "format": "int32",
-            "description": "Mẫu số THẬT của khoảng tin cậy: số phiên độc lập (`S/h`). `None` = không đo được."
+            "description": "Mẫu số THẬT của khoảng tin cậy: số phiên độc lập (S/h). Rỗng khi không đo được khoảng\nnào. Đây là con số trả lời \"có bao nhiêu bằng chứng\", không phải nForecasts."
           },
           "trialsBefore": {
             "type": "integer",
             "format": "int32",
-            "description": "`m` của phép hiệu chỉnh đa phép thử: số cấu hình đã thử trên cùng ô, đếm ngay trước\nkhi kết luận."
+            "description": "Số cấu hình đã thử trong cùng họ giả thuyết, đếm ngay trước khi kết luận (đã gồm cả\ncấu hình của chính dòng này). Khoảng tin cậy được nới ra theo con số này (Holm)."
           },
           "validationRunId": {
             "type": "integer",

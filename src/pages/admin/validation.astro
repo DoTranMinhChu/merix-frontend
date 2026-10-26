@@ -198,16 +198,37 @@ Astro.response.headers.set('Cache-Control', 'no-store');
       <p class="text-sm text-[var(--color-muted)]">Chưa có lần thẩm định nào.</p>
     ) : (
       <div class="overflow-x-auto">
-        <table class="w-full text-sm border-collapse min-w-[52rem]">
+        <table class="w-full text-sm border-collapse min-w-[64rem]">
           <caption class="sr-only">
-            Từng lần thẩm định: mô hình, kỳ hạn, giai đoạn, Brier, skill kèm khoảng tin cậy 95%
+            Từng lần thẩm định: mô hình, kỳ hạn, giai đoạn, số dự báo thô và số phiên độc lập,
+            số cấu hình đã thử, Brier, skill kèm khoảng tin cậy 95% đã hiệu chỉnh đa phép thử
           </caption>
           <thead>
             <tr class="text-left text-[var(--color-muted)] border-b border-[var(--color-line)]">
               <th scope="col" class="py-2 pr-3 font-medium">Mô hình</th>
               <th scope="col" class="py-2 pr-3 font-medium">Kỳ hạn</th>
               <th scope="col" class="py-2 pr-3 font-medium">Giai đoạn</th>
-              <th scope="col" class="py-2 pr-3 font-medium">n</th>
+              {/* Hai cột cạnh nhau, có chủ ý: `n` là số dự báo thô, `phiên độc lập` là lượng
+                  bằng chứng thật. Trên dữ liệu thật hai con số lệch nhau hàng nghìn lần, và chỉ
+                  hiện `n` là nói quá. */}
+              <th scope="col" class="py-2 pr-3 font-medium">
+                <abbr
+                  title="Số dự báo THÔ đã chấm, chưa ghép cặp. KHÔNG phải bằng chứng: cả rổ mã trong một phiên chia nhau một cú sốc thị trường. Chỉ dùng cho ngưỡng NOT_VALIDATED."
+                  class="cursor-help underline decoration-dotted">n thô</abbr
+                >
+              </th>
+              <th scope="col" class="py-2 pr-3 font-medium">
+                <abbr
+                  title="Số phiên độc lập (S/h) — mẫu số THẬT của khoảng tin cậy. Đây là con số trả lời 'có bao nhiêu bằng chứng'."
+                  class="cursor-help underline decoration-dotted">Phiên độc lập</abbr
+                >
+              </th>
+              <th scope="col" class="py-2 pr-3 font-medium">
+                <abbr
+                  title="Số cấu hình đã thử trong cùng họ giả thuyết. Khoảng tin cậy được nới ra theo con số này (hiệu chỉnh Holm)."
+                  class="cursor-help underline decoration-dotted">Đã thử</abbr
+                >
+              </th>
               <th scope="col" class="py-2 pr-3 font-medium">Brier</th>
               <th scope="col" class="py-2 pr-3 font-medium">Skill</th>
               <th scope="col" class="py-2 pr-3 font-medium">Khoảng tin cậy 95%</th>
@@ -233,7 +254,26 @@ Astro.response.headers.set('Cache-Control', 'no-store');
                   >
                     {r.periodFrom} → {r.periodTo}
                   </td>
-                  <td class="py-2 pr-3 tabular-nums">{r.nForecasts}</td>
+                  {/* `n` thô bị làm mờ có chủ ý: nó là con số to nhất trong hàng và là con số ít
+                      nói lên nhất. Mẫu số thật đứng ngay sau nó, không bị làm mờ. */}
+                  <td class="py-2 pr-3 tabular-nums text-[var(--color-muted)]">{r.nForecasts}</td>
+                  <td class="py-2 pr-3 tabular-nums font-semibold">
+                    {r.soPhienDocLap === null ? (
+                      <span class="font-normal text-[var(--color-muted)]">chưa đo được</span>
+                    ) : (
+                      r.soPhienDocLap
+                    )}
+                  </td>
+                  <td class="py-2 pr-3 tabular-nums text-[var(--color-muted)]">
+                    {r.trialsBefore === 0 ? '—' : r.trialsBefore}
+                    {r.ciAdjusted && ' ·'}
+                    {r.ciAdjusted && (
+                      <abbr
+                        title="Khoảng tin cậy ở hàng này ĐÃ được nới ra theo số cấu hình đã thử."
+                        class="cursor-help text-[var(--color-warn)]">đã nới</abbr
+                      >
+                    )}
+                  </td>
                   <td class="py-2 pr-3 tabular-nums">
                     {r.brier === null ? '—' : r.brier.toFixed(4)}
                   </td>

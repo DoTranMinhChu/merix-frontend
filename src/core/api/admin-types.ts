@@ -62,7 +62,34 @@ export interface ValidationRun {
     modelVersionId: number;
     periodFrom: string;
     periodTo: string;
+    /**
+     * So du bao THO da cham, CHUA ghep cap voi baseline. **Khong phai bang chung.**
+     *
+     * 1.700 ma du bao trong cung mot phien chia nhau MOT cu soc thi truong, nen con so nay lon
+     * hon luong bang chung that hang nghin lan. No chi dung cho dung mot viec: no la con so ma
+     * nguong `NOT_VALIDATED` so sanh. Hien thi no mot minh la noi qua - no phai dung canh
+     * `soPhienDocLap`.
+     */
     nForecasts: number;
+    /**
+     * Mau so THAT cua khoang tin cay: so phien doc lap (`S/h`). `null` = khong do duoc khoang.
+     *
+     * Day la con so tra loi "co bao nhieu bang chung". Tren du lieu that no nho hon `nForecasts`
+     * hang nghin lan.
+     */
+    soPhienDocLap: number | null;
+    /**
+     * So cau hinh da thu trong cung ho gia thuyet, dem ngay truoc khi ket luan (da gom ca cau
+     * hinh cua chinh dong nay). Khoang tin cay duoc noi ra theo con so nay (Holm).
+     */
+    trialsBefore: number;
+    /** Khoang tren dong nay DA BI NOI RA so voi khoang tho chua. */
+    ciAdjusted: boolean;
+    /**
+     * O cua dong nay co nam trong tap quyet dinh dang ky truoc khong. `false` = tham do: con so
+     * van dung duoc, nhung chon chinh no de ket luan la chon sau khi da nhin ket qua.
+     */
+    oQuyetDinh: boolean;
     brier: number | null;
     brierSkillPercent: number | null;
     /**
