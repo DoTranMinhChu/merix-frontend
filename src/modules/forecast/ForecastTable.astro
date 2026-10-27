@@ -10,6 +10,9 @@
  * 4. Moi ky han co the xuat hien nhieu lan (muc tuyet doi + hai muc tuong doi). Moi dong mang
  *    huy hieu muc tieu; dong tuyet doi luon dung truoc; ten con so lay tu `describeHorizon`
  *    nen muc tuong doi khong bao gio duoc goi la "xac suat tang".
+ * 5. Moi dong mang BANG CHUNG CUA CHINH NO (ban thiet ke §10): khoang tin cay skill, so quan sat
+ *    doc lap, va nhom ma da do. Mot dong chua do duoc thi noi "Chua do" — khong muon so cua
+ *    dong ben canh.
  *
  * Component nay khong goi API. No nhan du lieu da fetch, nen no test duoc bang gia tri cu the.
  */
@@ -27,6 +30,10 @@ const thuTu = (t: string) => (t === TARGET_ABSOLUTE ? 0 : t === TARGET_RELATIVE_
 const sorted = [...horizons].sort(
   (a, b) => a.horizonSessions - b.horizonSessions || thuTu(a.targetDefinition) - thuTu(b.targetDefinition),
 );
+
+/** Mot bien khoang tin cay, dau phay thap phan tieng Viet. `null` hien la `—`, khong phai `0`. */
+const soVi = (v: number | null | undefined) =>
+  v === null || v === undefined || !Number.isFinite(v) ? '—' : v.toFixed(2).replace('.', ',');
 ---
 
 <table class="w-full text-sm border-collapse">
@@ -41,6 +48,7 @@ const sorted = [...horizons].sort(
       <th scope="col" class="py-2 pr-4 font-medium">Phần bù</th>
       <th scope="col" class="py-2 font-medium">Phiên đích</th>
       <th scope="col" class="py-2 font-medium">Kiểm chứng / dữ liệu</th>
+      <th scope="col" class="py-2 font-medium">Bằng chứng (khoảng skill)</th>
     </tr>
   </thead>
   <tbody>
@@ -78,6 +86,21 @@ const sorted = [...horizons].sort(
           <td class="py-3 text-[var(--color-muted)]">
             {h.validationStatus ? VALIDATION_LABELS[h.validationStatus] : 'Chưa có thông tin'}
             <small class="table-status-date">{h.dataThrough ?? '—'}</small>
+          </td>
+          <td class="py-3 text-[var(--color-muted)]">
+            {h.evidence ? (
+              <>
+                <span class="tabular-nums">{soVi(h.evidence.ciLow)}% … {soVi(h.evidence.ciHigh)}%</span>
+                <small class="table-status-date">
+                  {h.evidence.independentSessions ?? '—'} quan sát độc lập · {h.evidence.population.assetCount} mã, {h.evidence.population.from} → {h.evidence.population.to}
+                </small>
+                {!h.evidence.population.includesThisAsset && (
+                  <small class="table-status-date evidence-warning">Mã này không nằm trong nhóm đã đo.</small>
+                )}
+              </>
+            ) : (
+              <span>Chưa đo</span>
+            )}
           </td>
         </tr>
       );

@@ -5,6 +5,7 @@
  * Muc tieu TUYET DOI la khung chinh. Muc tieu tuong doi chi hien trong khoi `relative-block`
  * rieng, voi huy hieu rieng — khong bao gio duoi chu "xac suat tang". Xem `core/api/target.ts`.
  */
+import { evidenceBlockHtml } from '../forecast/evidenceView';
 import { escapeHtml as e, percent, stale, type SnapshotForecast } from '../../core/api/market';
 import { describeHorizon, pickHorizon, relativeHorizons, TARGET_ABSOLUTE, type HorizonView } from '../../core/api/target';
 import {
@@ -73,7 +74,9 @@ export function probabilityBodyHtml(
     let html: string;
     if (abs) {
         const v = describeHorizon(abs, fallback);
-        html = `<p class="target-line">${badge(v)}<small>${e(v.target.question)}</small></p>${mainBlock(abs, fallback)}`;
+        // Bang chung di NGAY SAU con so, trong cung mot khoi, truoc moi thu khac. Bản thiết kế
+        // §10: canh con so, khong o trang khac — va khong o cuoi trang, noi khong ai cuon toi.
+        html = `<p class="target-line">${badge(v)}<small>${e(v.target.question)}</small></p>${mainBlock(abs, fallback)}${evidenceBlockHtml(abs.evidence)}`;
     } else {
         html = `<p class="panel-empty">${e(error ?? (forecast ? 'Chưa có dự báo tuyệt đối cho kỳ hạn này.' : 'Chưa có kết quả cho kỳ hạn này.'))}</p>`;
     }

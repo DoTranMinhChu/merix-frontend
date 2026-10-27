@@ -58,6 +58,52 @@ export interface AssetRef {
     exchange: string | null;
 }
 
+/**
+ * Hai bien khoang tin cay 95% cua Brier skill, don vi DIEM PHAN TRAM.
+ *
+ * Day la thu dai "khong co tin hieu" duoc suy ra tu do (`target.ts::noSignalBand`). Ca hai bien
+ * deu co the `null` — khong co khoang nao, chu khong phai mot khoang rong vo han.
+ */
+export interface SkillInterval {
+    ciLow: number | null;
+    ciHigh: number | null;
+}
+
+/** Mot o cua duong hieu chinh. `observedRate` la `null` khi `n === 0`. */
+export interface ReliabilityBin {
+    pLow: number;
+    pHigh: number;
+    n: number;
+    /** `null` khi `n === 0`. KHONG BAO GIO duoc suy tu o ben canh. */
+    observedRate: number | null;
+}
+
+/** Nhom ma ma bang chung duoc do tren do — dem tu du lieu, khong phai mot cau viet san. */
+export interface EvidencePopulation {
+    assetLevel: AssetLevel;
+    assetCount: number;
+    from: string;
+    to: string;
+    /** `false` nghia la bang chung KHONG noi ve ma dang xem. */
+    includesThisAsset: boolean;
+}
+
+/**
+ * Bang chung do duoc cua CHINH mot ky han. Ban thiet ke §10: no nam canh con so.
+ *
+ * `scoredCount` khong phai luong bang chung — cac lan cham chong lan nhau theo ky han. Luong
+ * bang chung la `independentSessions`.
+ */
+export interface HorizonEvidence extends SkillInterval {
+    brierSkill: number | null;
+    scoredCount: number;
+    independentSessions: number | null;
+    trialsBefore: number;
+    period: string;
+    reliabilityBins: ReliabilityBin[];
+    population: EvidencePopulation;
+}
+
 export interface HorizonForecast {
     horizonSessions: number;
     /** Mot ky han co the xuat hien HAI lan voi muc tieu khac nhau; luon chon theo ca hai. */
@@ -74,6 +120,8 @@ export interface HorizonForecast {
     probabilityNotUp: number | null;
     targetDate: string | null;
     abstainReason: AbstainReason | null;
+    /** Bang chung cua CHINH ky han nay. `null` khi chua do duoc ky han nay. */
+    evidence?: HorizonEvidence | null;
 }
 
 export interface ForecastResponse {

@@ -11,9 +11,37 @@ import {
     TARGET_RELATIVE_MARKET,
     TARGET_RELATIVE_SECTOR,
 } from '../../core/api/target';
-import type { ForecastResponse, HorizonForecast } from '../../core/api/types';
+import type { ForecastResponse, HorizonEvidence, HorizonForecast } from '../../core/api/types';
 
 const text = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+
+/**
+ * Bang chung mau. Khoang skill rong 5,4 diem ⇒ dai "khong co tin hieu" ≈ 0,0821.
+ *
+ * Fixture nay BAT BUOC phai co: khong co khoang tin cay thi `classify` tra "chua co co so" —
+ * dung nhu thiet ke — nen mot fixture thieu no se lam moi test "co tin hieu" doi vi mot ly do
+ * khong lien quan den thu no dinh kiem.
+ */
+const BANG_CHUNG: HorizonEvidence = {
+    brierSkill: 4.2,
+    ciLow: 1.5,
+    ciHigh: 6.9,
+    scoredCount: 360,
+    independentSessions: 37,
+    trialsBefore: 4,
+    period: 'validation',
+    reliabilityBins: [
+        { pLow: 0.5, pHigh: 0.6, n: 200, observedRate: 0.57 },
+        { pLow: 0.6, pHigh: 0.7, n: 0, observedRate: null },
+    ],
+    population: {
+        assetLevel: 'STOCK',
+        assetCount: 100,
+        from: '2018-01-02',
+        to: '2020-12-31',
+        includesThisAsset: true,
+    },
+};
 
 function h(over: Partial<HorizonForecast>): HorizonForecast {
     return {
@@ -27,6 +55,7 @@ function h(over: Partial<HorizonForecast>): HorizonForecast {
         validationStatus: 'VALIDATED_PROSPECTIVE',
         dataThrough: '2026-10-23',
         modelVersion: 'equal_ensemble.v1',
+        evidence: BANG_CHUNG,
         ...over,
     };
 }
@@ -146,6 +175,7 @@ describe('compactProbabilityHtml (hang, the, o nganh)', () => {
             probabilityUp: 0.62,
             probabilityNotUp: 0.38,
             abstainReason: null,
+            evidence: { ciLow: 1.5, ciHigh: 6.9 },
             ...o,
         }) as never;
     it('khong co dong tuyet doi va bi tu choi la HAI trang thai doc phan biet duoc bang chu', () => {
@@ -174,5 +204,56 @@ describe('compactProbabilityHtml (hang, the, o nganh)', () => {
     it('snapshot khong phai muc tieu tuyet doi thi khong bao gio duoc hien nhu xac suat tang', () => {
         const t = text(compactProbabilityHtml(snap({ targetDefinition: TARGET_RELATIVE_SECTOR })));
         expect(t).not.toContain('62,0%');
+    });
+});
+
+/**
+ * Ban thiet ke §10: bang chung nam CANH con so.
+ *
+ * "Canh" o day la mot rang buoc kiem duoc, khong phai mot cach noi: khoi bang chung phai nam
+ * trong cung mot lan render voi dong ho, va phai dung TRUOC phan chu thich mo hinh — tuc trong
+ * tam mat khi nguoi dung doc con so, khong phai o cuoi trang noi khong ai cuon toi.
+ */
+describe('bang chung nam canh con so', () => {
+    it('khoi bang chung di ngay sau dong ho, truoc chu thich mo hinh', () => {
+        const html = probabilityBodyHtml(fc([h({})]), 21);
+        const iGauge = html.indexOf('probability-gauge');
+        const iEvidence = html.indexOf('class="evidence"');
+        const iNote = html.indexOf('model-note');
+        expect(iGauge).toBeGreaterThan(-1);
+        expect(iEvidence, 'khong co khoi bang chung canh con so').toBeGreaterThan(iGauge);
+        expect(iNote, 'bang chung bi day xuong sau chu thich mo hinh').toBeGreaterThan(iEvidence);
+    });
+
+    it('nguoi xem mot ma ngoai nhom da do thay canh bao bang CHU, ngay canh con so', () => {
+        const ngoai = probabilityBodyHtml(
+            fc([
+                h({
+                    evidence: {
+                        ...BANG_CHUNG,
+                        population: { ...BANG_CHUNG.population, includesThisAsset: false },
+                    },
+                }),
+            ]),
+            21,
+        );
+        expect(text(ngoai)).toMatch(/không nói về mã này/);
+        expect(text(ngoai)).toContain('100');
+        expect(text(ngoai)).toContain('2018-01-02');
+        // Ma trong nhom thi KHONG duoc mang cau canh bao do.
+        expect(text(probabilityBodyHtml(fc([h({})]), 21))).not.toMatch(/không nói về mã này/);
+    });
+
+    it('o rong cua duong hieu chinh di qua tang hien thi van la o rong', () => {
+        const html = probabilityBodyHtml(fc([h({})]), 21);
+        expect(html).toContain('data-bin="0.6-0.7" data-empty="true"');
+        expect(html).toContain('data-bin="0.5-0.6" data-empty="false"');
+    });
+
+    it('khong co bang chung thi noi la chua co, va con so KHONG duoc goi la tin hieu', () => {
+        const html = probabilityBodyHtml(fc([h({ evidence: null })]), 21);
+        expect(text(html)).toMatch(/Chưa có bằng chứng đo được/);
+        expect(html).not.toContain('probability-gauge');
+        expect(text(html)).toMatch(/Chưa có cơ sở/);
     });
 });

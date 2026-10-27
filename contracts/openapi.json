@@ -2443,7 +2443,7 @@
               "null"
             ],
             "format": "int64",
-            "description": "Ai đã xác nhận. Lấy từ token trong [`crate::interface::acknowledge`], không từ body."
+            "description": "Ai đã xác nhận. Lấy từ token của lượt gọi `acknowledge`, không từ body."
           },
           "alertId": {
             "type": "integer",
@@ -3017,6 +3017,40 @@
           }
         }
       },
+      "EvidencePopulation": {
+        "type": "object",
+        "description": "Nhóm mã mà bằng chứng được đo trên đó — và mã đang xem có nằm trong nhóm đó không.\n\n# Vì sao đây không phải một câu chữ viết sẵn\n\nBằng chứng hiện được đo trên một nhóm hẹp (các mã có dự báo đã chấm trong kỳ), còn trang\nngười dùng mở được **mọi** mã. Người xem một mã nhỏ, ít thanh khoản, phải thấy ngay rằng con\nsố bên cạnh được đo trên một nhóm khác chứ không phải trên mã của họ. Một chuỗi gõ cứng kiểu\n\"đo trên 100 mã thanh khoản nhất\" sẽ đúng hôm nay và sai lặng lẽ từ lượt chấm điểm sau, nên cả\nbốn trường dưới đây đều đếm từ dữ liệu.",
+        "required": [
+          "assetLevel",
+          "assetCount",
+          "from",
+          "to",
+          "includesThisAsset"
+        ],
+        "properties": {
+          "assetCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Số mã **riêng biệt** có dự báo đã chấm trong kỳ, cho đúng mô hình này."
+          },
+          "assetLevel": {
+            "type": "string",
+            "description": "`MARKET` · `SECTOR` · `STOCK` — cấp của mô hình đã đo."
+          },
+          "from": {
+            "type": "string",
+            "description": "Mép dưới của mẫu đo (ngày)."
+          },
+          "includesThisAsset": {
+            "type": "boolean",
+            "description": "Mã đang xem có nằm trong nhóm đã đo không. `false` nghĩa là bằng chứng **không nói về nó**."
+          },
+          "to": {
+            "type": "string",
+            "description": "Mép trên của mẫu đo (ngày)."
+          }
+        }
+      },
       "Forecast": {
         "type": "object",
         "required": [
@@ -3198,7 +3232,7 @@
           },
           "disclaimer": {
             "type": "string",
-            "description": "Câu này luôn có mặt. Xem [`DISCLAIMER`]."
+            "description": "Câu này luôn có mặt: ràng buộc \"mọi trang đều có disclaimer\" nằm trong dữ liệu."
           },
           "horizons": {
             "type": "array",
@@ -3212,6 +3246,75 @@
           },
           "validationStatus": {
             "type": "string"
+          }
+        }
+      },
+      "HorizonEvidence": {
+        "type": "object",
+        "description": "Bằng chứng đo được của một `(kỳ hạn, mục tiêu, cấp)`, lấy từ kỳ `validation`.",
+        "required": [
+          "scoredCount",
+          "trialsBefore",
+          "period",
+          "reliabilityBins",
+          "population"
+        ],
+        "properties": {
+          "brierSkill": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Brier skill so với baseline `history`, điểm phần trăm. Dương là tốt hơn baseline."
+          },
+          "ciHigh": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Biên trên khoảng tin cậy 95% đã nới theo số cấu hình đã thử, điểm phần trăm."
+          },
+          "ciLow": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Biên dưới khoảng tin cậy 95% đã nới theo số cấu hình đã thử, điểm phần trăm."
+          },
+          "independentSessions": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Số quan sát **độc lập**: số mốc ra quyết định riêng biệt, đã trừ hao chồng lấn kỳ hạn.\nĐây là mẫu số thật của khoảng tin cậy."
+          },
+          "period": {
+            "type": "string",
+            "description": "Kỳ đã đo. Luôn là `validation`: kỳ duy nhất được phép quyết định. Không bao giờ là\n`train` (trong mẫu) hay `holdout` (niêm phong)."
+          },
+          "population": {
+            "$ref": "#/components/schemas/EvidencePopulation"
+          },
+          "reliabilityBins": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReliabilityBin"
+            },
+            "description": "Đường hiệu chỉnh, **luôn đủ mười ô** từ `[0; 0,1)` tới `[0,9; 1]`, theo thứ tự."
+          },
+          "scoredCount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Số lần chấm dựng nên **đường hiệu chỉnh** bên cạnh — bằng đúng tổng `n` của mười ô.\n\nĐây **không** phải lượng bằng chứng. Các lần chấm chồng lấn nhau theo kỳ hạn, nên con số\nnày lớn hơn số quan sát độc lập hàng nghìn lần. Nó ở đây chỉ để nói đường cong bên cạnh\ndựng trên bao nhiêu điểm; lượng bằng chứng là `independentSessions`."
+          },
+          "trialsBefore": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Số cấu hình đã thử trong cùng một họ trước khi đọc kết luận này. Khoảng tin cậy ở trên đã\nđược nới theo con số này."
           }
         }
       },
@@ -3244,6 +3347,17 @@
           "dataThrough": {
             "type": "string"
           },
+          "evidence": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/HorizonEvidence",
+                "description": "Bằng chứng đo được của **chính kỳ hạn này**. `null` khi chưa đo được kỳ hạn này.\n\nBản thiết kế §10: bằng chứng nằm cạnh con số, không ở trang khác. Một con số mà bằng\nchứng của nó cách một cú nhấp chuột là một con số người ta hành động theo mà không đọc\nbằng chứng."
+              }
+            ]
+          },
           "horizonSessions": {
             "type": "integer",
             "format": "int32"
@@ -3260,7 +3374,7 @@
               "null"
             ],
             "format": "double",
-            "description": "Phần bù của [`Self::probability_up`], **gồm cả giá đi ngang**."
+            "description": "Phần bù của `probabilityUp`, **gồm cả giá đi ngang**. Không phải xác suất giảm."
           },
           "probabilityUp": {
             "type": [
@@ -3801,6 +3915,60 @@
         },
         "additionalProperties": false
       },
+      "ReliabilityBin": {
+        "type": "object",
+        "description": "Một ô của đường hiệu chỉnh: trong các lần mô hình nói `p ∈ [pLow, pHigh)`, thực tế tăng bao\nnhiêu phần?",
+        "required": [
+          "pLow",
+          "pHigh",
+          "n"
+        ],
+        "properties": {
+          "n": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Số lần đã chấm rơi vào ô này. `0` nghĩa là chưa đo được gì trong ô này."
+          },
+          "observedRate": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Tần suất tăng thật trong ô. **`null` khi `n = 0`.**\n\nMột ô rỗng không có tỷ lệ nào để báo. Lấy giá trị của ô bên cạnh cho đường cong liền nét\nlà bịa ra một phép đo chưa từng xảy ra, đúng ở chỗ người đọc tin nhất."
+          },
+          "pHigh": {
+            "type": "number",
+            "format": "double"
+          },
+          "pLow": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "SkillInterval": {
+        "type": "object",
+        "description": "Khoảng tin cậy 95% của Brier skill (đơn vị: điểm phần trăm), đã nới theo số cấu hình đã thử.\n\nĐây là hai con số mà dải \"không có tín hiệu\" quanh 50% được suy ra từ đó. Chúng đi kèm cả ở\nđường chi tiết lẫn ở snapshot, vì chỗ nào in một xác suất thì chỗ đó phải biết dải của nó.\n\n`null` ở cả hai biên nghĩa là **không có khoảng nào** — không phải một khoảng rộng vô hạn và\ncũng không phải một khoảng hẹp. Nó xảy ra thật: bậc tự do bằng 0 (chỉ một mốc quyết định) hoặc\nđộ lệch chuẩn bằng 0 thì phép tính không cho ra khoảng nào cả.",
+        "properties": {
+          "ciHigh": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Biên trên, điểm phần trăm."
+          },
+          "ciLow": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Biên dưới, điểm phần trăm. Đây là con số quyết định `validationStatus`."
+          }
+        }
+      },
       "SnapshotForecast": {
         "type": "object",
         "required": [
@@ -3827,6 +3995,17 @@
           },
           "dataThrough": {
             "type": "string"
+          },
+          "evidence": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SkillInterval",
+                "description": "Hai biên của khoảng tin cậy Brier skill, để ô xác suất gọn biết dải \"không có tín hiệu\"\ncủa **chính nó**.\n\nSnapshot cố ý **không** mang cả khối bằng chứng: một lượt gọi trả về tới 100 tài sản, và\nđường hiệu chỉnh lẫn số mã của mẫu đo chỉ đọc được khi người dùng đã mở một mã. Chúng nằm\nở `HorizonEvidence` của `/api/v1/forecasts`. Nhưng dải thì **mọi** chỗ in một xác suất đều\ncần, nếu không ô gọn sẽ phải đoán — và đoán ở đây đúng là thứ task này xoá bỏ.\n\n`null` nghĩa là chưa đo được: giao diện nói \"chưa có cơ sở\", không rơi về một dải mặc định."
+              }
+            ]
           },
           "modelVersion": {
             "type": "string"
@@ -3859,7 +4038,7 @@
       },
       "TargetDefinition": {
         "type": "string",
-        "description": "Con số `probabilityUp` trả lời câu hỏi nào — giá trị của `targetDefinition`.\n\nCùng khuôn với [`AbstainReason`] ngay trên, và cùng lý do. Trường trong phản hồi vẫn là\n`String` phía Rust (giá trị đi thẳng từ cột `forecast.target_definition`); enum này tồn tại để\n`/openapi.json` **khai danh sách giá trị hợp lệ**, thay vì `{\"type\":\"string\"}`.\n\n# Vì sao một chuỗi tự do là không đủ\n\n`targetDefinition` là trường đầu đề của cả hệ: nó nói con số đang trả lời câu hỏi nào. Khi\nhợp đồng khai nó là chuỗi tự do thì **không CI nào bắt được một lần đổi tên** — bản chụp\n`contracts/openapi.json` so theo hình dạng, mà hình dạng của một chuỗi tự do không đổi khi\ngiá trị đổi. Frontend chép tay ba literal và sẽ im lặng rơi về nhãn \"mục tiêu chưa rõ\".\n\nEnum này viết tay (tên biến thể sinh ra chuỗi qua `SCREAMING_SNAKE_CASE`), nên được giữ khớp\n`merix_registry::TargetDefinition` bằng hai phép kiểm: độ dài `ALL` gắn với `COUNT` của\nregistry (lệch số lượng là lỗi biên dịch) và test `target_definition_schema_khop_registry`\n(lệch tên là test đỏ).",
+        "description": "Con số `probabilityUp` trả lời câu hỏi nào — giá trị của `targetDefinition`.\n\nCùng khuôn với `AbstainReason` ngay trên, và cùng lý do. Trường trong phản hồi vẫn là\n`String` phía Rust (giá trị đi thẳng từ cột `forecast.target_definition`); enum này tồn tại để\n`/openapi.json` **khai danh sách giá trị hợp lệ**, thay vì `{\"type\":\"string\"}`.\n\n# Vì sao một chuỗi tự do là không đủ\n\n`targetDefinition` là trường đầu đề của cả hệ: nó nói con số đang trả lời câu hỏi nào. Khi\nhợp đồng khai nó là chuỗi tự do thì **không CI nào bắt được một lần đổi tên** — bản chụp\n`contracts/openapi.json` so theo hình dạng, mà hình dạng của một chuỗi tự do không đổi khi\ngiá trị đổi. Frontend chép tay ba literal và sẽ im lặng rơi về nhãn \"mục tiêu chưa rõ\".\n\nEnum này viết tay (tên biến thể sinh ra chuỗi qua `SCREAMING_SNAKE_CASE`), nên được giữ khớp\n`merix_registry::TargetDefinition` bằng hai phép kiểm: độ dài `ALL` gắn với `COUNT` của\nregistry (lệch số lượng là lỗi biên dịch) và test `target_definition_schema_khop_registry`\n(lệch tên là test đỏ).",
         "enum": [
           "LOG_RETURN_ABSOLUTE_TOTAL_RETURN",
           "LOG_RETURN_RELATIVE_TO_MARKET",

@@ -4,6 +4,7 @@
   PredictionStatus,
   ValidationStatus,
   AbstainReason,
+  SkillInterval,
   TargetDefinition,
 } from "./types";
 export interface PricePoint {
@@ -22,6 +23,14 @@ export interface SnapshotForecast {
   dataThrough: string;
   asOf: string;
   modelVersion: string;
+  /**
+   * Hai bien de suy dai "khong co tin hieu" cua chinh o nay.
+   *
+   * Snapshot khong mang ca khoi bang chung (duong hieu chinh, nhom ma da do) — chung o
+   * `/api/v1/forecasts`. Nhung dai thi moi cho in mot xac suat deu can, neu khong o gon se phai
+   * doan. `null` nghia la chua do duoc: o gon noi "chua co co so", khong roi ve dai mac dinh.
+   */
+  evidence?: SkillInterval | null;
 }
 export interface MarketAsset {
   assetId: number;
