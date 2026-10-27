@@ -47,7 +47,13 @@ const theoId = new Map(versions.map((v) => [v.modelVersionId, v]));
 interface HoMo {
     family: string;
     soLan: number;
+    /**
+     * Tong `nForecasts` — so du bao THO CHUA GHEP CAP. Khong phai luong bang chung, va cong
+     * don lai chi lam no to hon su that. Luon hien kem `soPhienDocLap` ben canh.
+     */
     soDuBao: number;
+    /** Tong so phien doc lap — mau so THAT cua khoang tin cay. */
+    soPhienDocLap: number;
     /** Tong skill cua cac lan DO DUOC; chia o buoc sau. */
     tongSkill: number | null;
     /** So lan do duoc skill. Mau so dung la day, khong phai `soLan`. */
@@ -66,6 +72,7 @@ for (const r of runs) {
         family: mv.family,
         soLan: 0,
         soDuBao: 0,
+        soPhienDocLap: 0,
         tongSkill: null,
         soLanCoSkill: 0,
         skillXau: null,
@@ -74,6 +81,7 @@ for (const r of runs) {
 
     cur.soLan += 1;
     cur.soDuBao += r.nForecasts;
+    cur.soPhienDocLap += r.soPhienDocLap ?? 0;
     cur.kyHan.add(mv.horizonSessions);
 
     if (r.brierSkillPercent !== null) {
@@ -130,10 +138,18 @@ Astro.response.headers.set('Cache-Control', 'no-store');
       chứa 0 nghĩa là không phân biệt được với dự báo khí hậu, dù skill có vẻ dương.
     </p>
     <p>
-      Khoảng được tính trên hiệu Brier <strong>ghép cặp</strong> với baseline, và mẫu số là mẫu
-      hiệu dụng <code class="text-xs">n/h</code> vì nhãn kỳ hạn <code class="text-xs">h</code> gối
-      nhau. Vì vậy kỳ hạn càng dài, khoảng càng rộng — ở 63 phiên nó rộng gấp khoảng 8 lần so với
-      1 phiên trên cùng số dự báo.
+      Khoảng được tính trên hiệu Brier <strong>ghép cặp</strong> với baseline, và mẫu số là
+      <strong>số phiên độc lập</strong> <code class="text-xs">S/h</code> — không phải số dự báo.
+      Hai lý do cộng lại: nhãn kỳ hạn <code class="text-xs">h</code> gối nhau theo thời gian, và
+      hàng trăm mã dự báo trong <em>cùng một phiên</em> cùng chịu một cú sốc thị trường nên không
+      phải hàng trăm bằng chứng độc lập. Vì vậy thêm mã vào một ngày <strong>không</strong> làm
+      khoảng hẹp lại; chỉ thêm phiên mới làm được.
+    </p>
+    <p>
+      Khoảng dùng phân phối <code class="text-xs">t</code> với <code class="text-xs">S/h − 1</code>
+      bậc tự do, và được <strong>nới thêm</strong> theo số cấu hình đã thử (Holm) — thử càng nhiều
+      thì bằng chứng cần càng mạnh. Khi <code class="text-xs">S/h = 1</code> hệ thống
+      <strong>không phát khoảng nào</strong>: một khối độc lập không đỡ nổi một phát biểu.
     </p>
   </div>
 
@@ -155,7 +171,12 @@ Astro.response.headers.set('Cache-Control', 'no-store');
             <th scope="col" class="py-2 pr-4 font-medium">Skill trung bình</th>
             <th scope="col" class="py-2 pr-4 font-medium">Skill xấu nhất</th>
             <th scope="col" class="py-2 pr-4 font-medium">Số lần thẩm định</th>
-            <th scope="col" class="py-2 pr-4 font-medium">Số dự báo</th>
+            <th scope="col" class="py-2 pr-4 font-medium text-[var(--color-muted)]">
+              <abbr title="Tổng số dự báo thô, chưa ghép cặp với baseline. KHÔNG phải lượng bằng chứng: cộng dồn chỉ làm nó to hơn sự thật. Mẫu số thật là cột bên cạnh.">
+                n thô
+              </abbr>
+            </th>
+            <th scope="col" class="py-2 pr-4 font-medium">Phiên độc lập</th>
             <th scope="col" class="py-2 font-medium">Kỳ hạn</th>
           </tr>
         </thead>
@@ -176,6 +197,9 @@ Astro.response.headers.set('Cache-Control', 'no-store');
                 )}
               </td>
               <td class="py-2 pr-4 tabular-nums text-[var(--color-muted)]">{h.soDuBao}</td>
+              <td class="py-2 pr-4 tabular-nums font-semibold">
+                {h.soPhienDocLap > 0 ? h.soPhienDocLap : '—'}
+              </td>
               <td class="py-2 text-xs text-[var(--color-muted)] tabular-nums">
                 {[...h.kyHan].sort((a, b) => a - b).join(', ')}
               </td>
