@@ -52,8 +52,17 @@ interface HoMo {
      * don lai chi lam no to hon su that. Luon hien kem `soPhienDocLap` ben canh.
      */
     soDuBao: number;
-    /** Tong so phien doc lap — mau so THAT cua khoang tin cay. */
-    soPhienDocLap: number;
+    /**
+     * **LON NHAT** trong cac lan chay, khong phai tong.
+     *
+     * Mau so cua khoang tin cay la cua TUNG lan chay. Cong don chung lai la cung mot cai sai ma
+     * `soDuBao` o tren mac phai: mot ho co toi 7 lan chay tren nhieu ky han va nhieu ky chong
+     * nhau, nen cung mot phien lich bi cong di cong lai. Khong co khoang tin cay nao co mau so
+     * bang tong do. Lay `max` thi it nhat con so hien ra la mau so THAT cua mot lan chay co that.
+     */
+    soPhienDocLapMax: number;
+    /** Co lan chay nao chua do duoc mau so khong — de khong trinh bay mot phan nhu toan bo. */
+    thieuPhienDocLap: boolean;
     /** Tong skill cua cac lan DO DUOC; chia o buoc sau. */
     tongSkill: number | null;
     /** So lan do duoc skill. Mau so dung la day, khong phai `soLan`. */
@@ -72,7 +81,8 @@ for (const r of runs) {
         family: mv.family,
         soLan: 0,
         soDuBao: 0,
-        soPhienDocLap: 0,
+        soPhienDocLapMax: 0,
+        thieuPhienDocLap: false,
         tongSkill: null,
         soLanCoSkill: 0,
         skillXau: null,
@@ -81,7 +91,11 @@ for (const r of runs) {
 
     cur.soLan += 1;
     cur.soDuBao += r.nForecasts;
-    cur.soPhienDocLap += r.soPhienDocLap ?? 0;
+    if (r.soPhienDocLap === null) {
+        cur.thieuPhienDocLap = true;
+    } else {
+        cur.soPhienDocLapMax = Math.max(cur.soPhienDocLapMax, r.soPhienDocLap);
+    }
     cur.kyHan.add(mv.horizonSessions);
 
     if (r.brierSkillPercent !== null) {
@@ -139,17 +153,29 @@ Astro.response.headers.set('Cache-Control', 'no-store');
     </p>
     <p>
       Khoảng được tính trên hiệu Brier <strong>ghép cặp</strong> với baseline, và mẫu số là
-      <strong>số phiên độc lập</strong> <code class="text-xs">S/h</code> — không phải số dự báo.
+      <strong>số mốc độc lập</strong> <code class="text-xs">S/h</code> — không phải số dự báo.
       Hai lý do cộng lại: nhãn kỳ hạn <code class="text-xs">h</code> gối nhau theo thời gian, và
-      hàng trăm mã dự báo trong <em>cùng một phiên</em> cùng chịu một cú sốc thị trường nên không
-      phải hàng trăm bằng chứng độc lập. Vì vậy thêm mã vào một ngày <strong>không</strong> làm
-      khoảng hẹp lại; chỉ thêm phiên mới làm được.
+      hàng trăm mã dự báo ở <em>cùng một mốc</em> cùng chịu một cú sốc thị trường nên không phải
+      hàng trăm bằng chứng độc lập. Vì vậy thêm mã vào một mốc <strong>không làm tăng mẫu số</strong>;
+      chỉ thêm mốc mới làm được.
+    </p>
+    <p>
+      <code class="text-xs">S</code> lấy giá trị <strong>nhỏ hơn</strong> giữa số mốc ra quyết
+      định và số phiên dữ liệu. Không cái nào là chặn trên: một mốc có thể sinh nhiều phiên khi
+      mã kém thanh khoản có phiên cuối lệch nhau, và một phiên có thể phục vụ nhiều mốc khi nghỉ
+      lễ — trên dữ liệu hiện tại, 70 nhóm nghiêng mỗi bên.
     </p>
     <p>
       Khoảng dùng phân phối <code class="text-xs">t</code> với <code class="text-xs">S/h − 1</code>
-      bậc tự do, và được <strong>nới thêm</strong> theo số cấu hình đã thử (Holm) — thử càng nhiều
-      thì bằng chứng cần càng mạnh. Khi <code class="text-xs">S/h = 1</code> hệ thống
-      <strong>không phát khoảng nào</strong>: một khối độc lập không đỡ nổi một phát biểu.
+      bậc tự do. Khi <code class="text-xs">S/h = 1</code> hệ thống <strong>không phát khoảng
+      nào</strong>: một khối độc lập không đỡ nổi một phát biểu.
+    </p>
+    <p>
+      Khoảng <strong>có thể</strong> được nới thêm theo số cấu hình đã thử (Holm) — thử càng
+      nhiều thì bằng chứng cần càng mạnh. Nhưng việc nới <em>không</em> áp dụng cho mọi dòng: một
+      cấu hình <strong>không hơn baseline</strong> thì không tuyên bố gì, nên nó không tiêu một
+      phát súng nào và khoảng của nó giữ nguyên. Cột <strong>Đã nới</strong> ở bảng dưới nói rõ
+      từng dòng có thật sự bị nới hay không.
     </p>
   </div>
 
@@ -176,7 +202,11 @@ Astro.response.headers.set('Cache-Control', 'no-store');
                 n thô
               </abbr>
             </th>
-            <th scope="col" class="py-2 pr-4 font-medium">Phiên độc lập</th>
+            <th scope="col" class="py-2 pr-4 font-medium text-[var(--color-muted)]">
+              <abbr title="Mốc độc lập của lần chạy LỚN NHẤT trong họ, không phải tổng. Mẫu số là của từng lần chạy; cộng dồn lại thì cùng một phiên bị đếm nhiều lần và không khoảng tin cậy nào có mẫu số ấy.">
+                Mốc độc lập (lớn nhất)
+              </abbr>
+            </th>
             <th scope="col" class="py-2 font-medium">Kỳ hạn</th>
           </tr>
         </thead>
@@ -197,8 +227,11 @@ Astro.response.headers.set('Cache-Control', 'no-store');
                 )}
               </td>
               <td class="py-2 pr-4 tabular-nums text-[var(--color-muted)]">{h.soDuBao}</td>
-              <td class="py-2 pr-4 tabular-nums font-semibold">
-                {h.soPhienDocLap > 0 ? h.soPhienDocLap : '—'}
+              <td class="py-2 pr-4 tabular-nums text-[var(--color-muted)]">
+                {h.soPhienDocLapMax > 0 ? h.soPhienDocLapMax : '—'}
+                {h.thieuPhienDocLap && h.soPhienDocLapMax > 0 && (
+                  <span class="text-xs"> (có lần chưa đo được)</span>
+                )}
               </td>
               <td class="py-2 text-xs text-[var(--color-muted)] tabular-nums">
                 {[...h.kyHan].sort((a, b) => a - b).join(', ')}
@@ -224,7 +257,7 @@ Astro.response.headers.set('Cache-Control', 'no-store');
       <div class="overflow-x-auto">
         <table class="w-full text-sm border-collapse min-w-[64rem]">
           <caption class="sr-only">
-            Từng lần thẩm định: mô hình, kỳ hạn, giai đoạn, số dự báo thô và số phiên độc lập,
+            Từng lần thẩm định: mô hình, kỳ hạn, giai đoạn, số dự báo thô và số mốc độc lập,
             số cấu hình đã thử, Brier, skill kèm khoảng tin cậy 95% đã hiệu chỉnh đa phép thử
           </caption>
           <thead>
@@ -232,19 +265,19 @@ Astro.response.headers.set('Cache-Control', 'no-store');
               <th scope="col" class="py-2 pr-3 font-medium">Mô hình</th>
               <th scope="col" class="py-2 pr-3 font-medium">Kỳ hạn</th>
               <th scope="col" class="py-2 pr-3 font-medium">Giai đoạn</th>
-              {/* Hai cột cạnh nhau, có chủ ý: `n` là số dự báo thô, `phiên độc lập` là lượng
+              {/* Hai cột cạnh nhau, có chủ ý: `n` là số dự báo thô, `mốc độc lập` là lượng
                   bằng chứng thật. Trên dữ liệu thật hai con số lệch nhau hàng nghìn lần, và chỉ
                   hiện `n` là nói quá. */}
               <th scope="col" class="py-2 pr-3 font-medium">
                 <abbr
-                  title="Số dự báo THÔ đã chấm, chưa ghép cặp. KHÔNG phải bằng chứng: cả rổ mã trong một phiên chia nhau một cú sốc thị trường. Chỉ dùng cho ngưỡng NOT_VALIDATED."
+                  title="Số dự báo THÔ đã chấm, chưa ghép cặp. KHÔNG phải bằng chứng: cả rổ mã ở một mốc chia nhau một cú sốc thị trường. Chỉ dùng cho ngưỡng NOT_VALIDATED."
                   class="cursor-help underline decoration-dotted">n thô</abbr
                 >
               </th>
               <th scope="col" class="py-2 pr-3 font-medium">
                 <abbr
-                  title="Số phiên độc lập (S/h) — mẫu số THẬT của khoảng tin cậy. Đây là con số trả lời 'có bao nhiêu bằng chứng'."
-                  class="cursor-help underline decoration-dotted">Phiên độc lập</abbr
+                  title="Số mốc độc lập (S/h) — mẫu số THẬT của khoảng tin cậy. S là giá trị nhỏ hơn giữa số mốc ra quyết định và số phiên dữ liệu, vì không cái nào là chặn trên. Đây là con số trả lời 'có bao nhiêu bằng chứng'."
+                  class="cursor-help underline decoration-dotted">Mốc độc lập</abbr
                 >
               </th>
               <th scope="col" class="py-2 pr-3 font-medium">
