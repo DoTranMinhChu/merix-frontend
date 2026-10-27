@@ -67,6 +67,18 @@ export interface AssetRef {
 export interface SkillInterval {
     ciLow: number | null;
     ciHigh: number | null;
+    /**
+     * Brier cua baseline tren chinh cac cap da dung de dung khoang tren — mau so that cua phep
+     * doi "hieu Brier ↔ phan tram skill".
+     *
+     * `null`/vang nghia la chua do duoc, va `noSignalBand` khi do dung can tren `0,25`.
+     */
+    baselineBrier?: number | null;
+    /**
+     * Bang chung nay co noi ve ma dang xem khong. Co mat o **snapshot**; o duong chi tiet thi
+     * cho dung de doc la `HorizonEvidence.population.includesThisAsset`.
+     */
+    includesThisAsset?: boolean | null;
 }
 
 /** Mot o cua duong hieu chinh. `observedRate` la `null` khi `n === 0`. */

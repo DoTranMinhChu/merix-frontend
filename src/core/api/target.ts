@@ -76,21 +76,56 @@ export const DEFAULT_HORIZON = 5;
  *    bat dinh `B₀·w/100`; nua be rong la `B₀·w/200`.
  * 4. Do lech `d` chim trong nhieu khi `d² ≤ B₀·w/200`, tuc `d ≤ √(B₀·w/200)`.
  *
- * # Vi sao thay `B₀` bang `0,25`, va vi sao phep thay the do an toan
+ * # `B₀` DO DUOC thi dung so do duoc; `0,25` chi la cai thay the
  *
- * `B₀` khong di theo API (no la Brier cua baseline `history`, khong phai mot truong cua
- * `HorizonEvidence`). Thay no bang `0,25` KHONG phai mot con so chon tay: `0,25` la **can tren**
- * cua Brier moi baseline co hieu chinh dung, vi `p̄(1−p̄) ≤ 0,25` voi moi ty le nen `p̄`. Nen
- * phep thay the nay chi co the lam dai **rong hon** — tuc kho tuyen bo tin hieu hon — chu khong
- * bao gio hep hon. Do la huong duy nhat duoc phep di theo rang buoc cua giai doan 2.
+ * `baselineBrier` la `KhoangSkill::mean_b0` — Brier baseline tren **chinh cac cap** da dung de
+ * dung khoang nay (migration 021). Co no thi phep suy dao nguoc dung phep doi da dung, khong
+ * xap xi gi ca.
  *
- * Ket qua: `band = 0,5·√(w/200)`.
+ * Khi no vang (moi dong ghi truoc migration 021, va moi dong khong do duoc khoang), ham thay
+ * bang `0,25`. `0,25` la **can tren** cua Brier mot baseline **hieu chinh dung**, vi
+ * `p̄(1−p̄) ≤ 0,25` voi moi ty le nen `p̄` — nen voi mot baseline nhu the, phep thay the chi
+ * co the lam dai **rong hon**, tuc kho tuyen bo tin hieu hon.
+ *
+ * **Nhung bao dam mot chieu do CHI DUNG voi mot baseline hieu chinh dung.** Baseline `history`
+ * la khi hau co ve Beta(3,3); khi che do thi truong doi, Brier ngoai mau cua no **co the vuot
+ * `0,25`**, va khi do `0,25` lam dai **hep lai** — tuc pha dung bao dam ma ca suy luan nay
+ * dua vao. Day la ly do con so do duoc duoc uu tien, va la ly do `0,25` chi con la duong lui.
+ *
+ * Ket qua: `band = √(B₀·w/200)`, voi `B₀ = 0,25` cho ra `0,5·√(w/200)`.
  *
  * # Huong bien thien, va vi sao no la huong dung
  *
  * `w` lon hon — phep do kem chinh xac hon — cho dai RONG hon, tuc kho tuyen bo "co tin hieu"
  * hon. Mot phep do vo vong (`w ≥ 200` diem) cho dai `0,5`, tuc ca dai xac suat deu la nhieu.
  * Day khong con la mot nguong ai do chon; no la he qua cua chinh con so da do.
+ *
+ * # Khong co SAN, va day la ly do
+ *
+ * Mot khoang hep hon `0,72` diem cho dai duoi `0,03` — hep hon hang so tam cua giai doan 1.
+ * Trong **khong** vi pham rang buoc "moi thay doi nguong deu di theo huong nghiem hon": rang
+ * buoc ay cam **ha mot nguong de thu them ket luan**, con dai nay duoc SUY RA, va no chi tut
+ * xuong duoi `0,03` khi bang chung manh len tuong ung. Mot mo hinh do duoc toi do chinh xac
+ * ay thi mot do lech 2 diem khoi 50% that su la tin hieu, va goi no la nhieu moi la noi sai.
+ *
+ * Mot san cung (`Math.max(0.03, …)`) se dat lai dung hang so tuy tien ma task nay xoa di, chi
+ * khac cai ten. Nen khong co san.
+ *
+ * **Dieu nay DA xay ra tren du lieu that**, trai voi phong doan ban dau. Dem tren `merix_dev`
+ * ngay 2026-10-27, 133 dong `validation_run` co khoang:
+ *
+ * - **111** dong rong tu `0,72` diem tro len  ⇒ dai `≥ 0,03`;
+ * - **3** dong rong trong khoang `(0; 0,72)`  ⇒ dai **duoi** `0,03`; hep nhat la `0,2062`
+ *   diem, cho dai `0,0161`;
+ * - **19** dong rong **dung bang 0** ⇒ ham tra `null` (khong co dai), dung nhu y dinh.
+ *
+ * (Ca 252 dong cua `merix_dev` deu o ky `khong_phan_ky` nen khong dong nao duoc dem lam bang
+ * chung. Nhung chung den tu cung uoc luong tren cung du lieu, nen chung la chi dan dung ve do
+ * rong se gap.)
+ *
+ * Nen dai duoi `0,03` khong phai mot kha nang xa — no se xuat hien. Khi gap mot dong nhu the,
+ * thu can ra soat la **phep do** (so quan sat doc lap co that su doc lap khong; 19 dong rong
+ * bang 0 la mot dau hoi rieng), khong phai cai dai.
  *
  * # Khong do duoc thi KHONG CO DAI
  *
@@ -106,8 +141,24 @@ export function noSignalBand(e: SkillInterval | null | undefined): number | null
     // `rong === 0` la khong co do bat dinh nao — khong the ra tu mot phep do that, nen no la du
     // lieu hong chu khong phai mot dai hep bang 0.
     if (!(rong > 0)) return null;
-    return Math.min(0.5, 0.5 * Math.sqrt(rong / 200));
+    // `b0 > 1` cung bi coi la khong do duoc: Brier cua mot du bao xac suat khong the vuot 1,
+    // nen mot con so nhu the la du lieu hong, va tin no se cho mot dai rong vo ly.
+    const doDuoc = e?.baselineBrier;
+    const b0 =
+        doDuoc != null && Number.isFinite(doDuoc) && doDuoc > 0 && doDuoc <= 1
+            ? doDuoc
+            : BRIER_BASELINE_CAN_TREN;
+    return Math.min(0.5, Math.sqrt((b0 * rong) / 200));
 }
+
+/**
+ * Can tren cua Brier mot baseline hieu chinh dung: `max p̄(1−p̄) = 0,25` tai `p̄ = 0,5`.
+ *
+ * Day KHONG phai mot nguong chon tay — no la gia tri lon nhat mot ham bac hai dat duoc, va no
+ * chi duoc dung khi `baselineBrier` vang. Xem doc cua [`noSignalBand`] ve viec vi sao phep
+ * thay the nay an toan mot chieu, va khi nao thi khong.
+ */
+const BRIER_BASELINE_CAN_TREN = 0.25;
 
 export interface TargetInfo {
     /** Ten ngan, hien trong huy hieu. */

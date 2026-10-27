@@ -16,6 +16,7 @@
  *
  * Component nay khong goi API. No nhan du lieu da fetch, nen no test duoc bang gia tri cu the.
  */
+import { evidenceCellHtml } from './evidenceView';
 import type { HorizonForecast } from '@core/api/types';
 import { VALIDATION_LABELS, horizonLabel } from '@core/api/types';
 import { TARGET_ABSOLUTE, TARGET_RELATIVE_MARKET, describeHorizon } from '@core/api/target';
@@ -31,9 +32,6 @@ const sorted = [...horizons].sort(
   (a, b) => a.horizonSessions - b.horizonSessions || thuTu(a.targetDefinition) - thuTu(b.targetDefinition),
 );
 
-/** Mot bien khoang tin cay, dau phay thap phan tieng Viet. `null` hien la `—`, khong phai `0`. */
-const soVi = (v: number | null | undefined) =>
-  v === null || v === undefined || !Number.isFinite(v) ? '—' : v.toFixed(2).replace('.', ',');
 ---
 
 <table class="w-full text-sm border-collapse">
@@ -87,21 +85,7 @@ const soVi = (v: number | null | undefined) =>
             {h.validationStatus ? VALIDATION_LABELS[h.validationStatus] : 'Chưa có thông tin'}
             <small class="table-status-date">{h.dataThrough ?? '—'}</small>
           </td>
-          <td class="py-3 text-[var(--color-muted)]">
-            {h.evidence ? (
-              <>
-                <span class="tabular-nums">{soVi(h.evidence.ciLow)}% … {soVi(h.evidence.ciHigh)}%</span>
-                <small class="table-status-date">
-                  {h.evidence.independentSessions ?? '—'} quan sát độc lập · {h.evidence.population.assetCount} mã, {h.evidence.population.from} → {h.evidence.population.to}
-                </small>
-                {!h.evidence.population.includesThisAsset && (
-                  <small class="table-status-date evidence-warning">Mã này không nằm trong nhóm đã đo.</small>
-                )}
-              </>
-            ) : (
-              <span>Chưa đo</span>
-            )}
-          </td>
+          <td class="py-3 text-[var(--color-muted)]" set:html={evidenceCellHtml(h.evidence)} />
         </tr>
       );
     })}

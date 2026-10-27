@@ -3260,6 +3260,14 @@
           "population"
         ],
         "properties": {
+          "baselineBrier": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Brier của **baseline** trên chính các cặp đã dựng nên khoảng trên.\n\nGiao diện đảo ngược phép đổi \"hiệu Brier ↔ phần trăm skill\" để suy dải \"không có tín\nhiệu\", nên nó cần đúng mẫu số đã dùng ở đây. `null` nghĩa là chưa đo được (mọi dòng có\ntrước migration 021), và khi đó giao diện dùng cận trên `0,25`."
+          },
           "brierSkill": {
             "type": [
               "number",
@@ -3951,6 +3959,14 @@
         "type": "object",
         "description": "Khoảng tin cậy 95% của Brier skill (đơn vị: điểm phần trăm), đã nới theo số cấu hình đã thử.\n\nĐây là hai con số mà dải \"không có tín hiệu\" quanh 50% được suy ra từ đó. Chúng đi kèm cả ở\nđường chi tiết lẫn ở snapshot, vì chỗ nào in một xác suất thì chỗ đó phải biết dải của nó.\n\n`null` ở cả hai biên nghĩa là **không có khoảng nào** — không phải một khoảng rộng vô hạn và\ncũng không phải một khoảng hẹp. Nó xảy ra thật: bậc tự do bằng 0 (chỉ một mốc quyết định) hoặc\nđộ lệch chuẩn bằng 0 thì phép tính không cho ra khoảng nào cả.",
         "properties": {
+          "baselineBrier": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Brier của **baseline** trên chính các cặp đã dựng nên khoảng trên.\n\nMẫu số thật của phép đổi \"hiệu Brier ↔ phần trăm skill\". `null` khi chưa đo được, và khi\nđó giao diện dùng cận trên `0,25`. Xem migration 021 về việc vì sao cận trên ấy chỉ an\ntoàn một chiều với một baseline hiệu chỉnh đúng."
+          },
           "ciHigh": {
             "type": [
               "number",
@@ -3966,6 +3982,13 @@
             ],
             "format": "double",
             "description": "Biên dưới, điểm phần trăm. Đây là con số quyết định `validationStatus`."
+          },
+          "includesThisAsset": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Bằng chứng này có nói về **mã đang xem** không.\n\nỞ trang chi tiết, câu trả lời đi kèm cả nhóm mã đầy đủ\n(`evidence.population` của `/api/v1/forecasts`). Ở màn hình danh sách thì không có chỗ\ncho cả nhóm — nhưng câu\n\"bằng chứng không nói về mã này\" **không được** đợi tới khi người ta bấm vào mã. Người\nchủ quét danh sách trước, và hành động theo một luật duy nhất.\n\n`null` ở đường chi tiết (nơi `includesThisAsset` của `population` là chỗ đúng để đọc),\ncó giá trị ở snapshot."
           }
         }
       },

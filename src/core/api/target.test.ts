@@ -259,3 +259,85 @@ describe('dai khong co tin hieu suy tu so do', () => {
         expect(ma, 'con mot dai go cung trong ma nguon').not.toMatch(/0\.03\b/);
     });
 });
+
+/**
+ * `B₀` đo được được ưu tiên; `0,25` chỉ là đường lui — và đó là khác biệt có hậu quả.
+ *
+ * `0,25` là cận trên của Brier một baseline **hiệu chỉnh đúng**. Baseline `history` là khí hậu
+ * co về Beta(3,3), nên Brier ngoài mẫu của nó có thể **vượt** 0,25 khi chế độ thị trường đổi —
+ * và ở đó phép thay thế làm dải **hẹp lại**, tức phá đúng bảo đảm một chiều mà cả suy luận dựa
+ * vào. Nên con số đo được phải thắng.
+ */
+describe('baselineBrier do duoc thang can tren 0,25', () => {
+    const w = 5.4;
+    it('dung dung `sqrt(B0·w/200)` voi B0 do duoc', () => {
+        expect(noSignalBand({ ciLow: 1.5, ciHigh: 6.9, baselineBrier: 0.16 })).toBeCloseTo(
+            Math.sqrt((0.16 * w) / 200),
+            12,
+        );
+        expect(noSignalBand({ ciLow: 1.5, ciHigh: 6.9, baselineBrier: 0.25 })).toBeCloseTo(
+            0.5 * Math.sqrt(w / 200),
+            12,
+        );
+    });
+
+    it('baseline TE hon 0,25 cho dai RONG hon — dung huong ma `0,25` khong bao dam duoc', () => {
+        const doDuoc = noSignalBand({ ciLow: 1.5, ciHigh: 6.9, baselineBrier: 0.34 })!;
+        const thayThe = noSignalBand({ ciLow: 1.5, ciHigh: 6.9 })!;
+        expect(doDuoc).toBeGreaterThan(thayThe);
+        // Day chinh la truong hop `0,25` lam dai HEP lai: neu ham bo qua so do duoc, no se bao
+        // "co tin hieu" cho mot do lech nam trong nhieu that.
+        expect(thayThe).toBeLessThan(doDuoc);
+    });
+
+    it('baseline TOT hon 0,25 cho dai HEP hon, va do la ket luan dung cua phep do', () => {
+        expect(noSignalBand({ ciLow: 1.5, ciHigh: 6.9, baselineBrier: 0.09 })!).toBeLessThan(
+            noSignalBand({ ciLow: 1.5, ciHigh: 6.9 })!,
+        );
+    });
+
+    it('B0 vo nghia bi bo, quay ve can tren — khong tin mot con so hong', () => {
+        const canTren = noSignalBand({ ciLow: 1.5, ciHigh: 6.9 })!;
+        for (const b0 of [0, -0.1, 1.4, Number.NaN, Number.POSITIVE_INFINITY, null, undefined]) {
+            expect(
+                noSignalBand({ ciLow: 1.5, ciHigh: 6.9, baselineBrier: b0 as number }),
+                `baselineBrier=${b0}`,
+            ).toBeCloseTo(canTren, 12);
+        }
+    });
+
+    it('B0 khong cuu duoc mot khoang khong co: khong khoang thi van khong co dai', () => {
+        expect(noSignalBand({ ciLow: null, ciHigh: null, baselineBrier: 0.2 })).toBeNull();
+        expect(noSignalBand({ ciLow: 3, ciHigh: 3, baselineBrier: 0.2 })).toBeNull();
+    });
+});
+
+/**
+ * KHÔNG có sàn, và điều đó là cố ý — xem doc của `noSignalBand`.
+ *
+ * Một khoảng hẹp hơn 0,72 điểm cho dải dưới 0,03. Đó không phải vi phạm "chỉ đi theo hướng
+ * nghiêm hơn": ràng buộc ấy cấm **hạ một ngưỡng để thu thêm kết luận**, còn dải này được suy ra
+ * và chỉ tụt xuống khi bằng chứng mạnh lên tương ứng. Một sàn cứng sẽ đặt lại đúng hằng số tuỳ
+ * tiện mà task này xoá đi.
+ */
+describe('khong co san 0,03', () => {
+    it('khoang rat hep cho dai duoi 0,03, va ham KHONG keo no len', () => {
+        const b = noSignalBand({ ciLow: 4.0, ciHigh: 4.5 })!;
+        expect(b).toBeLessThan(0.03);
+        expect(b).toBeCloseTo(0.5 * Math.sqrt(0.5 / 200), 12);
+    });
+    it('mep 0,72 diem la cho dai bang dung 0,03', () => {
+        expect(noSignalBand({ ciLow: 0, ciHigh: 0.72 })).toBeCloseTo(0.03, 12);
+    });
+    it('ma nguon khong co `Math.max(0.03` nao', () => {
+        // Chi nhin phan MA, khong nhin chu thich: chinh doc cua `noSignalBand` giai thich vi
+        // sao khong co san, nen no co nhac toi hinh dang ay. Mot test doc ca chu thich se do vi
+        // loi giai thich — tuc do vi dung ly do nguoc.
+        const ma = readFileSync(fileURLToPath(new URL('./target.ts', import.meta.url)), 'utf8')
+            .split('\n')
+            .filter((d) => !/^\s*(\/\/|\*|\/\*)/.test(d))
+            .join('\n');
+        expect(ma, 'mot san cung da duoc dat lai').not.toMatch(/Math\.max\([^)]*0\.03/);
+        expect(ma, 'hang so tam cua giai doan 1 quay lai trong ma').not.toMatch(/0\.03\b/);
+    });
+});

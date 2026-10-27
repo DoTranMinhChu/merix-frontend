@@ -5,7 +5,7 @@
  * Muc tieu TUYET DOI la khung chinh. Muc tieu tuong doi chi hien trong khoi `relative-block`
  * rieng, voi huy hieu rieng — khong bao gio duoi chu "xac suat tang". Xem `core/api/target.ts`.
  */
-import { evidenceBlockHtml } from '../forecast/evidenceView';
+import { evidenceBlockHtml, outOfPopulationNoteHtml } from '../forecast/evidenceView';
 import { escapeHtml as e, percent, stale, type SnapshotForecast } from '../../core/api/market';
 import { describeHorizon, pickHorizon, relativeHorizons, TARGET_ABSOLUTE, type HorizonView } from '../../core/api/target';
 import {
@@ -103,12 +103,21 @@ export function compactProbabilityHtml(f: SnapshotForecast | null): string {
         return '<span class="state-label state-refused">Không rõ mục tiêu</span>';
     }
     const v = describeHorizon(f);
+    // Ban thiet ke §10: bang chung nam CANH con so — ke ca o day, noi con so chi rong mot o bang.
+    //
+    // Nguoi chu quet danh sach TRUOC, va hanh dong theo mot luat duy nhat ("bo qua duoi 70%, can
+    // nhac tren 70%"). Mot ma nho doc 72% o day ma khong co dau hieu gi la mot quyet dinh da
+    // xong truoc khi trang chi tiet kip noi "bang chung do tren nhom ma khac".
+    //
+    // Snapshot khong cho noi ca nhom (mot luot goi toi 100 dong), nhung no cho mot co — va cai
+    // co do o day thanh mot CAU, khong phai mot mau.
+    const canh_bao = outOfPopulationNoteHtml(f.evidence?.includesThisAsset);
     switch (v.state.kind) {
         case 'refused':
             return `<span class="state-label state-refused" title="${e(v.stateNote)}">${e(v.stateLabel)}</span><small class="state-number">${e(v.stateNote)}</small>`;
         case 'signal':
-            return `<strong class="table-probability${f.probabilityUp! < 0.5 ? ' negative' : ''}">${e(v.valueText ?? '—')}</strong>`;
+            return `<strong class="table-probability${f.probabilityUp! < 0.5 ? ' negative' : ''}">${e(v.valueText ?? '—')}</strong>${canh_bao}`;
         default:
-            return `<span class="state-label state-${v.state.kind}">${e(v.stateLabel)}</span><small class="state-number">${e(v.valueText ?? '—')}</small>`;
+            return `<span class="state-label state-${v.state.kind}">${e(v.stateLabel)}</span><small class="state-number">${e(v.valueText ?? '—')}</small>${canh_bao}`;
     }
 }

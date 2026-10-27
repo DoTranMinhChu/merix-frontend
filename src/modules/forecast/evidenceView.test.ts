@@ -8,7 +8,9 @@
  * 2. **Nhom ma da do.** Nguoi xem mot ma nho phai thay ngay rang bang chung khong noi ve no.
  */
 import { describe, expect, it } from 'vitest';
-import { evidenceBlockHtml, reliabilityCurveHtml } from './evidenceView';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { evidenceBlockHtml, reliabilityCurveHtml, evidenceCellHtml, outOfPopulationNoteHtml } from './evidenceView';
 import type { HorizonEvidence, ReliabilityBin } from '@core/api/types';
 
 /** Mot the trong chuoi HTML, lay theo `data-bin`. Khong dung DOM: du an khong co jsdom. */
@@ -108,14 +110,91 @@ describe('khoi bang chung', () => {
         expect(trong).not.toMatch(/không nằm trong|không bao gồm|không nói về/);
     });
 
-    it('so phien doc lap duoc goi la luong bang chung; so lan cham thi khong', () => {
+    it('so phien doc lap dung TRUOC so lan cham, va cau dinh chinh di LIEN voi so lan cham', () => {
         const html = evidenceBlockHtml(evidence());
         const iSessions = html.indexOf('37');
         const iScored = html.indexOf('360');
         expect(iSessions).toBeGreaterThan(-1);
         expect(iScored).toBeGreaterThan(-1);
-        // `scoredCount` chi duoc xuat hien kem chu "chồng lấn" — no KHONG phai luong bang chung.
-        expect(html).toMatch(/chồng lấn/);
+        // Thu tu doc duoc: luong bang chung that dung TRUOC con so de bi doc nham.
+        expect(iSessions).toBeLessThan(iScored);
+
+        // Cau dinh chinh phai di LIEN voi `360`, khong phai "co mat o dau do tren trang": mot
+        // cau canh bao troi sang khoi khac la mot cau khong ai doc cung con so no noi ve.
+        const sau = html.slice(iScored, iScored + 320);
+        expect(sau, 'cau "chong lan" khong con di kem so lan cham').toMatch(/chồng lấn/);
+        expect(sau).toMatch(/phải lượng bằng chứng/);
+    });
+
+    it('o co mau nhung KHONG co ty le thi khong duoc bia ra mot ty le', () => {
+        // Backend cho phep dong nay: `n > 0` nhung `avg(realized_label)` la NULL.
+        const html = reliabilityCurveHtml([
+            { pLow: 0.4, pHigh: 0.5, n: 40, observedRate: null },
+            { pLow: 0.5, pHigh: 0.6, n: 10, observedRate: 0.5 },
+        ]);
+        const o = html.slice(html.indexOf('<g data-bin="0.4-0.5"')).split('</g>')[0];
+        expect(o).toContain('data-empty="true"');
+        expect(o).not.toContain('<circle');
+        expect(o).not.toContain('data-rate');
+        // `null * 100` cho `0`: day la hinh dang cua con so bia ra, va no khong duoc xuat hien.
+        expect(o).not.toMatch(/thực tế tăng 0,0%/);
+        expect(o).toMatch(/40 lần chấm/);
+    });
+
+    it('cau canh bao gon la mot CAU, va chi hien khi biet chac la ngoai nhom', () => {
+        expect(outOfPopulationNoteHtml(false)).toMatch(/không nói về mã này/);
+        expect(outOfPopulationNoteHtml(false)).toContain('data-in-population="false"');
+        expect(outOfPopulationNoteHtml(true)).toBe('');
+        // Chua biet thi khong noi chac theo chieu nao.
+        expect(outOfPopulationNoteHtml(null)).toBe('');
+        expect(outOfPopulationNoteHtml(undefined)).toBe('');
+    });
+});
+
+describe('o bang chung cua bang nam ky han', () => {
+    it('dong chua do noi la chua do, khong muon so cua dong ben canh', () => {
+        expect(evidenceCellHtml(null)).toMatch(/Chưa đo/);
+        // Khong mot chu so nao: mot o "chua do" mang so la mot o da muon so cua cho khac.
+        expect(evidenceCellHtml(null).replace(/[^0-9]/g, '')).toBe('');
+        expect(evidenceCellHtml(undefined)).toMatch(/Chưa đo/);
+    });
+
+    it('dong co bang chung mang khoang, so quan sat doc lap va nhom ma', () => {
+        const html = evidenceCellHtml({
+            ...evidence(),
+            population: { ...evidence().population, includesThisAsset: true },
+        });
+        expect(html).toContain('1,50%');
+        expect(html).toContain('6,90%');
+        expect(html).toMatch(/37 quan sát độc lập/);
+        expect(html).toMatch(/100 mã/);
+        expect(html).toMatch(/2018-01-02/);
+        expect(html).not.toMatch(/không nói về mã này/);
+    });
+
+    it('dong cua mot ma ngoai nhom do mang cau canh bao ngay trong o', () => {
+        expect(evidenceCellHtml(evidence())).toMatch(/không nói về mã này/);
+    });
+
+    /**
+     * Bang `.astro` phai THAT SU goi o nay.
+     *
+     * Ba test tren kiem `evidenceCellHtml`, nhung khong test nao kiem rang template dung no —
+     * dung cai lo da lam phep dot bien `F10` xanh o cho khac. Khong co harness nao render
+     * `.astro`, nen khoa o muc ma nguon, giong `target.test.ts` da lam voi `renderProbability`.
+     */
+    it('ForecastTable.astro ve o bang `evidenceCellHtml`, khong tu dung markup rieng', () => {
+        const src = readFileSync(
+            fileURLToPath(new URL('./ForecastTable.astro', import.meta.url)),
+            'utf8',
+        );
+        expect(src, 'template khong goi evidenceCellHtml').toContain(
+            'set:html={evidenceCellHtml(',
+        );
+        // Khong con mot ban markup bang chung thu hai nam trong template.
+        expect(src, 'markup bang chung viet tay da quay lai trong template').not.toMatch(
+            /quan sát độc lập|Chưa đo|evidence-warning/,
+        );
     });
 
     it('khong co bang chung thi noi la khong co, khong ve mot duong cong rong nhu that', () => {

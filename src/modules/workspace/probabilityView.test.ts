@@ -257,3 +257,62 @@ describe('bang chung nam canh con so', () => {
         expect(text(html)).toMatch(/Chưa có cơ sở/);
     });
 });
+
+/**
+ * Ô gọn của trang danh sách phải tự nói "bằng chứng không nói về mã này" — bằng CHỮ.
+ *
+ * Đây là chỗ nguy hiểm nhất của cả task. Người chủ quét danh sách trước và hành động theo một
+ * luật duy nhất ("bỏ qua dưới 70%, cân nhắc trên 70%"). Một mã nhỏ đọc 72% ở đây với một huy
+ * hiệu sạch sẽ là một quyết định đã xong **trước khi** trang chi tiết kịp nói bằng chứng đo trên
+ * nhóm mã khác.
+ *
+ * Đo được: bỏ câu cảnh báo khỏi `compactProbabilityHtml` mà không có khối test này thì 132/132
+ * test vẫn xanh — vì test cũ chỉ gọi thẳng `outOfPopulationNoteHtml`, không kiểm rằng ô gọn
+ * thật sự vẽ nó ra.
+ */
+describe('o gon mang canh bao ngoai nhom do', () => {
+    const snapE = (ev: unknown, p = 0.72) =>
+        ({
+            targetDefinition: TARGET_ABSOLUTE,
+            predictionStatus: 'LIVE',
+            validationStatus: 'VALIDATED_PROSPECTIVE',
+            probabilityUp: p,
+            probabilityNotUp: 1 - p,
+            abstainReason: null,
+            evidence: ev,
+        }) as never;
+
+    it('nhanh CO TIN HIEU — cho nguy hiem nhat — van mang cau canh bao', () => {
+        const html = compactProbabilityHtml(
+            snapE({ ciLow: 1.5, ciHigh: 6.9, includesThisAsset: false }),
+        );
+        // Dung la nhanh "co tin hieu": con so duoc in dam, khong co nhan trang thai.
+        expect(html).toContain('table-probability');
+        expect(text(html)).toContain('72,0%');
+        expect(text(html), 'o gon khong noi gi ve viec bang chung do tren nhom khac').toMatch(
+            /không nói về mã này/,
+        );
+    });
+
+    it('ma TRONG nhom do khong mang cau do — khac biet phai co ca hai chieu', () => {
+        const html = compactProbabilityHtml(
+            snapE({ ciLow: 1.5, ciHigh: 6.9, includesThisAsset: true }),
+        );
+        expect(text(html)).toContain('72,0%');
+        expect(text(html)).not.toMatch(/không nói về mã này/);
+    });
+
+    it('nhanh KHONG CO TIN HIEU cung mang cau do', () => {
+        const html = compactProbabilityHtml(
+            snapE({ ciLow: 1.5, ciHigh: 6.9, includesThisAsset: false }, 0.51),
+        );
+        expect(text(html)).toMatch(/Không có tín hiệu/);
+        expect(text(html)).toMatch(/không nói về mã này/);
+    });
+
+    it('chua biet thi khong noi chac theo chieu nao', () => {
+        for (const ev of [{ ciLow: 1.5, ciHigh: 6.9 }, null]) {
+            expect(text(compactProbabilityHtml(snapE(ev)))).not.toMatch(/không nói về mã này/);
+        }
+    });
+});

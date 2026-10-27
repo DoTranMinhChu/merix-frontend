@@ -7,6 +7,8 @@ import {
   readWatchlist,
   escapeHtml,
 } from "./market";
+import type { SnapshotForecast } from "./market";
+import { TARGET_ABSOLUTE, classify } from "./target";
 describe("research data presentation", () => {
   it("does not turn missing probabilities into 0 or 50 percent", () => {
     expect(percent(null)).toBe("—");
@@ -59,5 +61,71 @@ describe("research data presentation", () => {
       "&lt;img src=x onerror=&quot;x&quot;&gt;",
     );
     expect(escapeHtml("'&")).toBe("&#39;&amp;");
+  });
+});
+
+/**
+ * Ô xác suất của trang danh sách sống hay chết theo `SnapshotForecast.evidence`.
+ *
+ * Trước vòng này, trường ấy không có một test nào ở phía giao diện: `classify` trả "chưa có cơ
+ * sở" khi không suy được dải, nên một `evidence` im lặng thành `null` biến **mọi dòng** của
+ * trang danh sách thành "Chưa có cơ sở" mà không gì đỏ. Đo được ở backend: thay `ciLow` bằng
+ * `NULL` trong truy vấn snapshot, 39/39 test `--test api` vẫn xanh.
+ */
+describe("snapshot: hai bien khoang la thu quyet dinh o nay noi gi", () => {
+  const snap = (evidence: unknown): SnapshotForecast =>
+    ({
+      targetDefinition: TARGET_ABSOLUTE,
+      predictionStatus: "LIVE",
+      validationStatus: "VALIDATED_PROSPECTIVE",
+      probabilityUp: 0.62,
+      probabilityNotUp: 0.38,
+      abstainReason: null,
+      dataThrough: "2026-10-23",
+      asOf: "2026-10-23",
+      modelVersion: "equal_ensemble.v1",
+      evidence,
+    }) as never;
+
+  it("co khoang thi o gon noi duoc co tin hieu hay khong", () => {
+    // w = 5,4 ⇒ dai ≈ 0,0822. 0,62 lech 0,12 — ngoai dai.
+    expect(classify(snap({ ciLow: 1.5, ciHigh: 6.9 })).kind).toBe("signal");
+    // Cung khoang ay, 0,55 lech 0,05 — TRONG dai.
+    expect(
+      classify({ ...snap({ ciLow: 1.5, ciHigh: 6.9 }), probabilityUp: 0.55 }).kind,
+    ).toBe("no-signal");
+  });
+
+  it("thieu khoang thi o gon noi CHUA CO CO SO, khong roi ve mot dai mac dinh", () => {
+    for (const e of [null, undefined, { ciLow: null, ciHigh: 6.9 }, { ciLow: 1.5, ciHigh: null }]) {
+      const s = classify(snap(e));
+      expect(s.kind, `evidence=${JSON.stringify(e)}`).toBe("no-basis");
+      expect(s.kind === "no-basis" && s.why).toBe("khong-suy-duoc-dai");
+    }
+  });
+
+  it("dai cua o gon suy tu CHINH khoang cua no, khong phai mot hang so", () => {
+    const hep = classify({
+      ...snap({ ciLow: 0.4, ciHigh: 2.2 }),
+      probabilityUp: 0.56,
+    });
+    const rong = classify({
+      ...snap({ ciLow: -8, ciHigh: 12 }),
+      probabilityUp: 0.56,
+    });
+    // Cung mot xac suat, hai khoang khac nhau ⇒ hai ket luan khac nhau.
+    expect(hep.kind).toBe("signal");
+    expect(rong.kind).toBe("no-signal");
+  });
+
+  it("`includesThisAsset` di theo tung dong va KHONG doi trang thai cua o", () => {
+    const trong = snap({ ciLow: 1.5, ciHigh: 6.9, includesThisAsset: true });
+    const ngoai = snap({ ciLow: 1.5, ciHigh: 6.9, includesThisAsset: false });
+    // Cung mo hinh, cung khoang ⇒ cung trang thai. Co nay KHONG duoc lam mo hinh "yeu di";
+    // no noi mot chuyen khac han: bang chung do tren nhom nao. Tron hai chuyen lai la noi sai.
+    expect(classify(trong).kind).toBe("signal");
+    expect(classify(ngoai).kind).toBe("signal");
+    // Cau canh bao duoc kiem o cho no duoc ve ra: `probabilityView.test.ts`.
+    expect(ngoai.evidence?.includesThisAsset).toBe(false);
   });
 });

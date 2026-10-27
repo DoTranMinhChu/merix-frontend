@@ -3245,3 +3245,10 @@ small.state-number {
   line-height: 1.5;
   color: var(--muted);
 }
+
+/* Ô "chưa đo" của bảng kỳ hạn: KHÔNG mang màu cảnh báo — nó không phải một cảnh báo, nó là
+ * chỗ trống trung thực. Màu cảnh báo ở đây sẽ dạy người đọc bỏ qua màu ấy. */
+.evidence-chua-do {
+  color: var(--muted);
+  font-style: italic;
+}

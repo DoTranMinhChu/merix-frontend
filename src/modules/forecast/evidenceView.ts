@@ -47,7 +47,18 @@ export function reliabilityCurveHtml(bins: readonly ReliabilityBin[]): string {
         .map((b) => {
             const giua = (b.pLow + b.pHigh) / 2;
             const rong = b.n === 0 || b.observedRate === null;
-            const nhan = `${binKey(b)}: ${b.n === 0 ? 'không có lần chấm nào' : `${b.n} lần chấm, thực tế tăng ${(b.observedRate! * 100).toFixed(1).replace('.', ',')}%`}`;
+            // NHÃN phải rẽ theo CÙNG `rong` với cái điểm. Rẽ theo `b.n === 0` một mình thì một
+            // ô có `n > 0` nhưng `observedRate === null` — backend cho phép, vì
+            // `avg(realized_label)` có thể là NULL — đọc ra `null * 100` và tooltip nói
+            // "40 lần chấm, thực tế tăng 0,0%": đúng một con số bịa, ở đúng chỗ người đọc tin
+            // nhất. Một `rong`, hai chỗ dùng.
+            const nhan = `${binKey(b)}: ${
+                rong
+                    ? b.n === 0
+                        ? 'không có lần chấm nào'
+                        : `${b.n} lần chấm, nhưng không có tỷ lệ đo được`
+                    : `${b.n} lần chấm, thực tế tăng ${(b.observedRate! * 100).toFixed(1).replace('.', ',')}%`
+            }`;
             // Vach day cho biet o nay nang bao nhieu — o rong co vach cao 0, tuc khong co vach.
             const cao = (b.n / nMax) * 8;
             const vach =
@@ -63,6 +74,38 @@ export function reliabilityCurveHtml(bins: readonly ReliabilityBin[]): string {
 
     const soO = bins.filter((b) => b.n > 0).length;
     return `<figure class="reliability" data-filled-bins="${soO}"><svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Đường hiệu chỉnh: mô hình nói bao nhiêu phần trăm thì thực tế tăng bao nhiêu phần trăm. ${soO} trên ${bins.length} khoảng có dữ liệu."><line x1="${x(0)}" y1="${y(0)}" x2="${x(1)}" y2="${y(1)}" class="reliability-ideal"/><line x1="${x(0)}" y1="${y(0)}" x2="${x(1)}" y2="${y(0)}" class="reliability-axis"/><line x1="${x(0)}" y1="${y(0)}" x2="${x(0)}" y2="${y(1)}" class="reliability-axis"/>${o}</svg><figcaption>Đường chéo là hiệu chỉnh hoàn hảo. <strong>${soO}/${bins.length}</strong> khoảng có dữ liệu; khoảng rỗng để trống, không nối.</figcaption></figure>`;
+}
+
+/**
+ * Câu cảnh báo gọn "bằng chứng không nói về mã này", cho những chỗ không chở nổi cả khối.
+ *
+ * Trả chuỗi rỗng khi mã CÓ trong nhóm đã đo, và khi **chưa biết** (`null`/vắng): một màn hình
+ * chưa biết thì không được nói chắc theo chiều nào.
+ *
+ * Đây là một CÂU, không phải một màu. Trang danh sách là nơi người chủ quét trước và hành động
+ * theo một luật duy nhất; một sắc đỏ nhạt ở đó không phải lời cảnh báo, nó là trang trí.
+ */
+export function outOfPopulationNoteHtml(includes: boolean | null | undefined): string {
+    if (includes !== false) return '';
+    return `<small class="evidence-warning" data-in-population="false">Bằng chứng không nói về mã này</small>`;
+}
+
+/**
+ * Ô "bằng chứng" của bảng năm kỳ hạn: khoảng skill, số quan sát độc lập, nhóm mã, cảnh báo.
+ *
+ * Nằm ở đây chứ không trong `ForecastTable.astro` vì một biểu thức trong template `.astro`
+ * không có chỗ nào kiểm được — và chính ô này là chỗ một dòng "chưa đo" có thể lặng lẽ mượn số
+ * của dòng bên cạnh.
+ */
+export function evidenceCellHtml(ev: HorizonEvidence | null | undefined): string {
+    if (!ev) return '<span class="evidence-chua-do">Chưa đo</span>';
+    const p = ev.population;
+    return (
+        `<span class="tabular-nums">${diem(ev.ciLow)}% … ${diem(ev.ciHigh)}%</span>` +
+        `<small class="table-status-date">${ev.independentSessions ?? '—'} quan sát độc lập · ` +
+        `${p.assetCount} mã, ${e(p.from)} → ${e(p.to)}</small>` +
+        outOfPopulationNoteHtml(p.includesThisAsset)
+    );
 }
 
 /** `12,3%` hoặc `—`. Giữ dấu phẩy thập phân tiếng Việt. */
